@@ -10,12 +10,24 @@
     body { background:#0f172a; color:#e2e8f0; margin:0; }
     .up { color:#22c55e; } .down { color:#ef4444; } .ref { color:#facc15; }
     tr:hover { background:#1e293b; cursor:pointer; } .selected { background:#1e3a5f !important; }
-    #priceTable td, #priceTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
+    #priceTable td, #priceTable th, #hotTable td, #hotTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
     .info-label { color:#94a3b8; font-size:11px; }
     .tf-btn { padding:3px 10px; font-size:12px; border-radius:4px; background:#1e293b; border:1px solid #334155; cursor:pointer; }
     .tf-btn.active { background:#1e40af; }
-    @media (min-width:768px) { body { overflow:hidden; height:100vh; } .main-layout { display:flex; height:calc(100vh - 40px); } .col-board { width:320px; overflow:auto; border-right:1px solid #334155; } .col-info { width:320px; overflow:auto; border-right:1px solid #334155; } .col-chart { flex:1; display:flex; flex-direction:column; } }
-    @media (max-width:767px) { .main-layout { display:block; } .col-board { max-height:42vh; overflow:auto; } .col-info { padding:12px; } .col-chart { height:52vh; display:flex; flex-direction:column; } }
+    .sec-h { position:sticky; top:0; background:#111827; color:#93c5fd; font-size:11px; font-weight:700; letter-spacing:.02em; padding:6px 8px; border-bottom:1px solid #334155; }
+    @media (min-width:768px) {
+      body { overflow:hidden; height:100vh; }
+      .main-layout { display:flex; height:calc(100vh - 40px); }
+      .col-board { width:268px; min-width:220px; overflow:auto; border-right:1px solid #334155; }
+      .col-hot { width:392px; min-width:320px; overflow:auto; border-right:1px solid #334155; }
+      .col-chart { flex:1; min-width:360px; display:flex; flex-direction:column; }
+    }
+    @media (max-width:767px) {
+      .main-layout { display:block; }
+      .col-board { max-height:36vh; overflow:auto; }
+      .col-hot { max-height:42vh; overflow:auto; border-top:1px solid #334155; }
+      .col-chart { height:56vh; display:flex; flex-direction:column; }
+    }
   </style>
 </head>
 <body class="flex flex-col">
@@ -25,35 +37,183 @@
     <p id="status" class="text-xs text-slate-400 ml-auto">Đang tải...</p>
   </div>
   <div class="main-layout">
-    <div class="col-board"><table class="w-full"><thead class="bg-slate-800 sticky top-0 text-xs"><tr><th class="text-left">Mã</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr></thead><tbody id="priceTable"></tbody></table></div>
-    <div class="col-info p-3"><div id="companyPanel"><p class="text-slate-500 text-sm text-center mt-6">Chọn mã để xem thông tin</p></div></div>
-    <div class="col-chart"><div class="px-3 py-1.5 border-b border-slate-700 flex gap-2"><span id="chartTitle" class="text-xs text-slate-400">Chart</span><button class="tf-btn active" data-tf="D" onclick="changeTimeframe('D')">Ngày</button><button class="tf-btn" data-tf="W" onclick="changeTimeframe('W')">Tuần</button><button class="tf-btn" data-tf="M" onclick="changeTimeframe('M')">Tháng</button></div><div id="chart" class="flex-1" style="min-height:280px"></div></div>
+    <div class="col-board">
+      <div class="sec-h">Danh sách lọc</div>
+      <table class="w-full">
+        <thead class="bg-slate-800 sticky top-[29px] text-xs">
+          <tr><th class="text-left">Mã</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
+        </thead>
+        <tbody id="priceTable"></tbody>
+      </table>
+    </div>
+    <div class="col-hot">
+      <div class="sec-h">Bảng giá realtime · 35 HSX + 15 HNX tăng mạnh</div>
+      <table class="w-full">
+        <thead class="bg-slate-800 sticky top-[29px] text-xs">
+          <tr><th class="text-left">Mã</th><th class="text-left">Sàn</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
+        </thead>
+        <tbody id="hotTable"></tbody>
+      </table>
+    </div>
+    <div class="col-chart">
+      <div class="px-3 py-1.5 border-b border-slate-700 flex gap-2 items-center">
+        <span id="chartTitle" class="text-xs text-slate-400">Chart</span>
+        <button class="tf-btn active" data-tf="D" onclick="changeTimeframe('D')">Ngày</button>
+        <button class="tf-btn" data-tf="W" onclick="changeTimeframe('W')">Tuần</button>
+        <button class="tf-btn" data-tf="M" onclick="changeTimeframe('M')">Tháng</button>
+      </div>
+      <div id="companyPanel" class="px-3 py-2 border-b border-slate-700 text-xs"><span class="text-slate-500">Chọn mã để xem thông tin</span></div>
+      <div id="chart" class="flex-1" style="min-height:240px"></div>
+    </div>
   </div>
   <script>
     const VPS = "https://bgapidatafeed.vps.com.vn/getliststockdata";
+    const VPS_LIST = "https://bgapidatafeed.vps.com.vn/getlistallstock";
     const API = "https://skystock-api-1.onrender.com";
     const PROFILE = "https://api.simplize.vn/api/company/summary";
     let symbols = [], stocks = [], filtered = [], selected = null, profiles = {};
-    let chart = null, candleSeries = null, volumeSeries = null, rawHistory = [], currentTF = "D";
+    let universe = [], hot = [], chart = null, candleSeries = null, volumeSeries = null, rawHistory = [], currentTF = "D";
+
     function toVnd(v) { const n = Number(v); if (!n) return 0; return n < 1000 ? Math.round(n * 1000) : Math.round(n); }
     function num(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString("vi-VN", { maximumFractionDigits: d }) : "—"; }
     function ty(v) { const n = Number(v); if (!n) return "—"; return (n / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " tỷ"; }
-    function mapVps(row) { const last = Number(row.lastPrice || 0), ref = Number(row.r || 0); return { symbol: row.sym, price: toVnd(last || row.closePrice), change: (last - ref) * 1000, percent: ref ? (last - ref) / ref * 100 : 0, volume: Number(row.lot || 0) * 10, ceiling: toVnd(row.c), floor: toVnd(row.f) }; }
-    async function loadList() { const res = await fetch("https://raw.githubusercontent.com/skynel2417/skystock/main/scan.json?ts=" + Date.now()); const data = await res.json(); symbols = (data.symbols || []).map(s => String(s).toUpperCase()); }
-    async function fetchBoard() { if (!symbols.length) { stocks = []; applyFilter(); document.getElementById("status").textContent = "Chưa có mã"; return; } const rows = []; for (let i = 0; i < symbols.length; i += 60) { const res = await fetch(`${VPS}/${symbols.slice(i, i + 60).join(",")}`); if (res.ok) rows.push(...await res.json()); } const got = new Map(rows.map(r => [r.sym, mapVps(r)])); stocks = symbols.map(s => got.get(s) || { symbol: s, price: 0, change: 0, percent: 0, volume: 0 }); applyFilter(); document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${filtered.length} mã`; }
-    function applyFilter() { const q = document.getElementById("searchInput").value.trim().toUpperCase(); filtered = stocks.filter(s => !q || s.symbol.includes(q)); renderTable(); }
-    function renderTable() { const tb = document.getElementById("priceTable"); tb.innerHTML = filtered.length ? "" : `<tr><td colspan="5" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`; filtered.forEach(s => { const tr = document.createElement("tr"); tr.className = selected === s.symbol ? "selected" : ""; tr.onclick = () => selectStock(s); const cls = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref"; tr.innerHTML = `<td class="font-bold">${s.symbol}</td><td class="text-right ${cls}">${Number(s.price||0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change||0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent||0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume||0)/1000).toFixed(0)}K</td>`; tb.appendChild(tr); }); }
-    function ensureChart() { if (chart) return; const el = document.getElementById("chart"); chart = LightweightCharts.createChart(el, { layout: { background: { color: "#0f172a" }, textColor: "#94a3b8" }, grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } }, autoSize: true }); candleSeries = chart.addCandlestickSeries({ upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444" }); volumeSeries = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol" }); chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } }); }
-    function normalizeBar(bar) { const time = Number(bar.time || bar.t); return { time: time > 1e12 ? Math.floor(time / 1000) : time, open: toVnd(bar.open ?? bar.o), high: toVnd(bar.high ?? bar.h), low: toVnd(bar.low ?? bar.l), close: toVnd(bar.close ?? bar.c), volume: Number(bar.volume ?? bar.v ?? 0) }; }
-    function bucketKey(time, tf) { const d = new Date(time * 1000); if (tf === "M") return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000; if (tf === "W") { const day = d.getUTCDay() || 7; return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 1) / 1000; } return time; }
-    function aggregate(bars, tf) { if (tf === "D") return bars; const map = new Map(); bars.forEach(b => { const key = bucketKey(b.time, tf); const cur = map.get(key); if (!cur) map.set(key, { ...b, time: key }); else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; } }); return [...map.values()]; }
-    function drawChart() { ensureChart(); const bars = aggregate(rawHistory, currentTF).filter(b => b.time && b.open); candleSeries.setData(bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }))); volumeSeries.setData(bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)" }))); chart.timeScale().fitContent(); }
-    function changeTimeframe(tf) { currentTF = tf; document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === tf)); if (rawHistory.length) drawChart(); }
+    function mapVps(row, floor) {
+      const last = Number(row.lastPrice || 0), ref = Number(row.r || 0);
+      return {
+        symbol: row.sym,
+        floor: floor || row.mc || "",
+        price: toVnd(last || row.closePrice),
+        change: (last - ref) * 1000,
+        percent: ref ? (last - ref) / ref * 100 : 0,
+        volume: Number(row.lot || 0) * 10,
+        ceiling: toVnd(row.c),
+        floorPrice: toVnd(row.f)
+      };
+    }
+    async function fetchQuotes(list) {
+      const rows = [];
+      for (let i = 0; i < list.length; i += 60) {
+        const res = await fetch(`${VPS}/${list.slice(i, i + 60).join(",")}`);
+        if (res.ok) rows.push(...await res.json());
+      }
+      return rows;
+    }
+    async function loadList() {
+      const res = await fetch("https://raw.githubusercontent.com/skynel2417/skystock/main/scan.json?ts=" + Date.now());
+      const data = await res.json();
+      symbols = (data.symbols || []).map(s => String(s).toUpperCase());
+    }
+    async function loadUniverse() {
+      const res = await fetch(VPS_LIST);
+      const data = await res.json();
+      universe = data.filter(x => x.type === "S" && /^[A-Z]{3}$/.test(x.stock_code) && (x.post_to === "HOSE" || x.post_to === "HNX"))
+        .map(x => ({ symbol: x.stock_code, floor: x.post_to === "HOSE" ? "HSX" : "HNX" }));
+    }
+    async function fetchBoard() {
+      if (!symbols.length) { stocks = []; applyFilter(); }
+      else {
+        const rows = await fetchQuotes(symbols);
+        const got = new Map(rows.map(r => [r.sym, mapVps(r)]));
+        stocks = symbols.map(s => got.get(s) || { symbol: s, price: 0, change: 0, percent: 0, volume: 0 });
+        applyFilter();
+      }
+      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
+    }
+    async function fetchHot() {
+      if (!universe.length) await loadUniverse();
+      const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
+      const rows = await fetchQuotes(universe.map(x => x.symbol));
+      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym))).filter(s => s.price > 0);
+      const top = (floor, n) => mapped.filter(s => s.floor === floor).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
+      hot = [...top("HSX", 35), ...top("HNX", 15)];
+      renderHot();
+      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
+    }
+    function applyFilter() {
+      const q = document.getElementById("searchInput").value.trim().toUpperCase();
+      filtered = stocks.filter(s => !q || s.symbol.includes(q));
+      renderTable();
+    }
+    function cells(s, withFloor) {
+      const cls = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
+      return `<td class="font-bold">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
+    }
+    function renderTable() {
+      const tb = document.getElementById("priceTable");
+      tb.innerHTML = filtered.length ? "" : `<tr><td colspan="5" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`;
+      filtered.forEach(s => {
+        const tr = document.createElement("tr");
+        tr.className = selected === s.symbol ? "selected" : "";
+        tr.onclick = () => selectStock(s);
+        tr.innerHTML = cells(s, false);
+        tb.appendChild(tr);
+      });
+    }
+    function renderHot() {
+      const tb = document.getElementById("hotTable");
+      tb.innerHTML = "";
+      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Đang tải bảng giá...</td></tr>`; return; }
+      let last = "";
+      hot.forEach(s => {
+        if (s.floor !== last) {
+          last = s.floor;
+          const hr = document.createElement("tr");
+          hr.innerHTML = `<td colspan="6" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · 35 mã tăng mạnh nhất" : "HNX · 15 mã tăng mạnh nhất"}</td>`;
+          tb.appendChild(hr);
+        }
+        const tr = document.createElement("tr");
+        tr.className = selected === s.symbol ? "selected" : "";
+        tr.onclick = () => selectStock(s);
+        tr.innerHTML = cells(s, true);
+        tb.appendChild(tr);
+      });
+    }
+    function ensureChart() {
+      if (chart) return;
+      const el = document.getElementById("chart");
+      chart = LightweightCharts.createChart(el, { layout: { background: { color: "#0f172a" }, textColor: "#94a3b8" }, grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } }, autoSize: true });
+      candleSeries = chart.addCandlestickSeries({ upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444" });
+      volumeSeries = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol" });
+      chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    }
+    function normalizeBar(bar) {
+      const time = Number(bar.time || bar.t);
+      return { time: time > 1e12 ? Math.floor(time / 1000) : time, open: toVnd(bar.open ?? bar.o), high: toVnd(bar.high ?? bar.h), low: toVnd(bar.low ?? bar.l), close: toVnd(bar.close ?? bar.c), volume: Number(bar.volume ?? bar.v ?? 0) };
+    }
+    function bucketKey(time, tf) {
+      const d = new Date(time * 1000);
+      if (tf === "M") return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000;
+      if (tf === "W") { const day = d.getUTCDay() || 7; return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 1) / 1000; }
+      return time;
+    }
+    function aggregate(bars, tf) {
+      if (tf === "D") return bars;
+      const map = new Map();
+      bars.forEach(b => {
+        const key = bucketKey(b.time, tf);
+        const cur = map.get(key);
+        if (!cur) map.set(key, { ...b, time: key });
+        else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; }
+      });
+      return [...map.values()];
+    }
+    function drawChart() {
+      ensureChart();
+      const bars = aggregate(rawHistory, currentTF).filter(b => b.time && b.open);
+      candleSeries.setData(bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
+      volumeSeries.setData(bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)" })));
+      chart.timeScale().fitContent();
+    }
+    function changeTimeframe(tf) {
+      currentTF = tf;
+      document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === tf));
+      if (rawHistory.length) drawChart();
+    }
     function row(label, value) { return `<div class="flex justify-between gap-3"><span class="info-label">${label}</span><span class="text-right">${value}</span></div>`; }
     function renderProfile(stock, profile) {
       const cls = stock.change > 0 ? "up" : stock.change < 0 ? "down" : "ref";
       const p = profile || {};
-      document.getElementById("companyPanel").innerHTML = `<div class="text-lg font-bold text-blue-400">${stock.symbol}</div><div class="text-sm text-slate-200 mt-1">${p.name || "Đang tải tên doanh nghiệp..."}</div><div class="text-xs text-slate-400 mt-1">${p.sector || ""}</div><div class="space-y-1.5 text-sm mt-3">${row("Giá", `<span class="${cls}">${num(stock.price)}</span>`)}${row("Thay đổi", `<span class="${cls}">${stock.change > 0 ? "+" : ""}${num(stock.change)} (${num(stock.percent, 2)}%)</span>`)}${row("Ngành chính", p.industry || "—")}${row("EPS", num(p.eps, 0))}${row("P/E", num(p.pe, 2))}${row("Vốn hóa", ty(p.mcap))}${row("CP lưu hành", p.shares ? num(p.shares) : "—")}${row("Khối lượng", num(stock.volume))}</div>`;
+      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 mt-1">${row("Ngành", p.industry || p.sector || "—")}${row("EPS", num(p.eps, 0))}${row("P/E", num(p.pe, 2))}${row("Vốn hóa", ty(p.mcap))}</div>`;
     }
     async function loadProfile(symbol) {
       if (profiles[symbol]) return profiles[symbol];
@@ -64,16 +224,32 @@
       return profiles[symbol];
     }
     async function selectStock(stock) {
-      selected = stock.symbol; renderTable();
+      selected = stock.symbol;
+      renderTable();
+      renderHot();
       document.getElementById("chartTitle").textContent = stock.symbol;
       renderProfile(stock, profiles[stock.symbol]);
       const profileTask = loadProfile(stock.symbol).then(p => { if (selected === stock.symbol) renderProfile(stock, p); }).catch(() => {});
-      try { const res = await fetch(`${API}/api/history/${stock.symbol}?days=160`); const data = await res.json(); rawHistory = Array.isArray(data) ? data.map(normalizeBar) : []; } catch { rawHistory = []; }
-      currentTF = "D"; if (rawHistory.length) drawChart();
+      try {
+        const res = await fetch(`${API}/api/history/${stock.symbol}?days=160`);
+        const data = await res.json();
+        rawHistory = Array.isArray(data) ? data.map(normalizeBar) : [];
+      } catch { rawHistory = []; }
+      currentTF = "D";
+      document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === "D"));
+      if (rawHistory.length) drawChart();
       await profileTask;
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
-    (async () => { try { await loadList(); await fetchBoard(); setInterval(async () => { await loadList(); await fetchBoard(); }, 15000); } catch { document.getElementById("status").textContent = "Đang tải..."; } })();
+    (async () => {
+      try {
+        await loadList();
+        await fetchBoard();
+        fetchHot().catch(() => {});
+        setInterval(async () => { await loadList(); await fetchBoard(); }, 15000);
+        setInterval(() => { fetchHot().catch(() => {}); }, 20000);
+      } catch { document.getElementById("status").textContent = "Lỗi tải dữ liệu"; }
+    })();
   </script>
 </body>
 </html>
