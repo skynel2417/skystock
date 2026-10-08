@@ -50,17 +50,44 @@
 
   <script>
     // ===== Dữ liệu mẫu (mô phỏng gần realtime) =====
-    const stocks = [
-      { symbol: "VCB", name: "Vietcombank", price: 91200, change: 400, percent: 0.44, volume: 1250000, ceiling: 97500, floor: 84900 },
+       const stocks = [
+      // ===== VN30 =====
+      { symbol: "ACB", name: "Á Châu", price: 24500, change: 150, percent: 0.62, volume: 1850000, ceiling: 26200, floor: 22800 },
+      { symbol: "BCM", name: "Becamex", price: 68500, change: -400, percent: -0.58, volume: 320000, ceiling: 73300, floor: 63700 },
+      { symbol: "BID", name: "BIDV", price: 48500, change: 300, percent: 0.62, volume: 2100000, ceiling: 51900, floor: 45100 },
+      { symbol: "BVH", name: "Bảo Việt", price: 42500, change: -200, percent: -0.47, volume: 450000, ceiling: 45500, floor: 39500 },
+      { symbol: "CTG", name: "VietinBank", price: 36500, change: 250, percent: 0.69, volume: 3200000, ceiling: 39100, floor: 33900 },
       { symbol: "FPT", name: "FPT Corp", price: 112500, change: 2500, percent: 2.27, volume: 980000, ceiling: 120000, floor: 105000 },
-      { symbol: "VNM", name: "Vinamilk", price: 67800, change: -200, percent: -0.29, volume: 750000, ceiling: 72500, floor: 63100 },
-      { symbol: "HPG", name: "Hòa Phát", price: 29400, change: 450, percent: 1.55, volume: 2100000, ceiling: 31400, floor: 27400 },
-      { symbol: "TCB", name: "Techcombank", price: 24500, change: 300, percent: 1.24, volume: 1850000, ceiling: 26200, floor: 22800 },
-      { symbol: "SSI", name: "SSI Securities", price: 34200, change: 700, percent: 2.09, volume: 3200000, ceiling: 36600, floor: 31800 },
-      { symbol: "MWG", name: "Mobile World", price: 58500, change: -800, percent: -1.35, volume: 1100000, ceiling: 62500, floor: 54500 },
-      { symbol: "VIC", name: "Vingroup", price: 42500, change: 100, percent: 0.24, volume: 890000, ceiling: 45500, floor: 39500 },
       { symbol: "GAS", name: "PV Gas", price: 78500, change: -500, percent: -0.63, volume: 450000, ceiling: 84000, floor: 73000 },
-      { symbol: "MSN", name: "Masan", price: 71200, change: 1200, percent: 1.71, volume: 670000, ceiling: 76200, floor: 66200 }
+      { symbol: "GVR", name: "Cao su VN", price: 28500, change: 400, percent: 1.42, volume: 890000, ceiling: 30500, floor: 26500 },
+      { symbol: "HDB", name: "HDBank", price: 26500, change: 200, percent: 0.76, volume: 1650000, ceiling: 28400, floor: 24600 },
+      { symbol: "HPG", name: "Hòa Phát", price: 29400, change: 450, percent: 1.55, volume: 2100000, ceiling: 31400, floor: 27400 },
+      { symbol: "MBB", name: "MB Bank", price: 23500, change: 150, percent: 0.64, volume: 2800000, ceiling: 25200, floor: 21800 },
+      { symbol: "MSN", name: "Masan", price: 71200, change: 1200, percent: 1.71, volume: 670000, ceiling: 76200, floor: 66200 },
+      { symbol: "MWG", name: "Mobile World", price: 58500, change: -800, percent: -1.35, volume: 1100000, ceiling: 62500, floor: 54500 },
+      { symbol: "PLX", name: "Petrolimex", price: 38500, change: -300, percent: -0.77, volume: 580000, ceiling: 41200, floor: 35800 },
+      { symbol: "SAB", name: "Sabeco", price: 58500, change: 500, percent: 0.86, volume: 210000, ceiling: 62600, floor: 54400 },
+      { symbol: "SHB", name: "SHB", price: 11500, change: 100, percent: 0.88, volume: 4500000, ceiling: 12300, floor: 10700 },
+      { symbol: "SSB", name: "SeABank", price: 18500, change: -150, percent: -0.80, volume: 980000, ceiling: 19800, floor: 17200 },
+      { symbol: "SSI", name: "SSI Securities", price: 34200, change: 700, percent: 2.09, volume: 3200000, ceiling: 36600, floor: 31800 },
+      { symbol: "STB", name: "Sacombank", price: 32500, change: 400, percent: 1.25, volume: 4100000, ceiling: 34800, floor: 30200 },
+      { symbol: "TCB", name: "Techcombank", price: 24500, change: 300, percent: 1.24, volume: 1850000, ceiling: 26200, floor: 22800 },
+      { symbol: "TPB", name: "TPBank", price: 17500, change: 100, percent: 0.57, volume: 2200000, ceiling: 18700, floor: 16300 },
+      { symbol: "VCB", name: "Vietcombank", price: 91200, change: 400, percent: 0.44, volume: 1250000, ceiling: 97500, floor: 84900 },
+      { symbol: "VHM", name: "Vinhomes", price: 42500, change: -300, percent: -0.70, volume: 1500000, ceiling: 45500, floor: 39500 },
+      { symbol: "VIB", name: "VIB", price: 18500, change: 200, percent: 1.09, volume: 1350000, ceiling: 19800, floor: 17200 },
+      { symbol: "VIC", name: "Vingroup", price: 42500, change: 100, percent: 0.24, volume: 890000, ceiling: 45500, floor: 39500 },
+      { symbol: "VJC", name: "Vietjet", price: 98500, change: -800, percent: -0.81, volume: 420000, ceiling: 105400, floor: 91600 },
+      { symbol: "VNM", name: "Vinamilk", price: 67800, change: -200, percent: -0.29, volume: 750000, ceiling: 72500, floor: 63100 },
+      { symbol: "VPB", name: "VPBank", price: 19500, change: 150, percent: 0.78, volume: 3100000, ceiling: 20900, floor: 18100 },
+      { symbol: "VRE", name: "Vincom Retail", price: 18500, change: -100, percent: -0.54, volume: 980000, ceiling: 19800, floor: 17200 },
+
+      // ===== Một số mã phổ biến khác =====
+      { symbol: "DGC", name: "Đức Giang", price: 98500, change: 1200, percent: 1.23, volume: 650000, ceiling: 105400, floor: 91600 },
+      { symbol: "PNJ", name: "PNJ", price: 92500, change: 800, percent: 0.87, volume: 380000, ceiling: 99000, floor: 86000 },
+      { symbol: "REE", name: "Cơ điện lạnh", price: 68500, change: 300, percent: 0.44, volume: 290000, ceiling: 73300, floor: 63700 },
+      { symbol: "KDH", name: "Khang Điền", price: 32500, change: -200, percent: -0.61, volume: 850000, ceiling: 34800, floor: 30200 },
+      { symbol: "DXG", name: "Đất Xanh", price: 14500, change: 150, percent: 1.05, volume: 2100000, ceiling: 15500, floor: 13500 }
     ];
 
     let selectedSymbol = null;
