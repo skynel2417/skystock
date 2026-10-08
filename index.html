@@ -54,7 +54,7 @@
       </table>
     </div>
     <div class="col-hot">
-      <div class="sec-h">Bảng giá realtime · 35 HSX + 15 HNX tăng mạnh</div>
+      <div class="sec-h" id="hotTitle">Bảng giá · 35 HSX + 15 HNX tăng mạnh</div>
       <table class="w-full">
         <thead class="bg-slate-800 sticky top-[29px] text-xs">
           <tr><th class="text-left">Mã</th><th class="text-left">Sàn</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
@@ -76,10 +76,12 @@
   <script>
     const VPS = "https://bgapidatafeed.vps.com.vn/getliststockdata";
     const VPS_LIST = "https://bgapidatafeed.vps.com.vn/getlistallstock";
+    const CAFEF = "https://cafef.vn/du-lieu/ajax/pagenew/datahistory/pricehistory.ashx";
     const API = "https://skystock-api-1.onrender.com";
     const PROFILE = "https://api.simplize.vn/api/company/summary";
+    let hotMode = "prev";
     let symbols = [], stocks = [], filtered = [], selected = null, profiles = {};
-    let universe = [], hot = [], chart = null, candleSeries = null, volumeSeries = null, rawHistory = [], currentTF = "D";
+    let universe = [], hot = [], hotDate = "", chart = null, candleSeries = null, volumeSeries = null, rawHistory = [], currentTF = "D";
 
     function toVnd(v) { const n = Number(v); if (!n) return 0; return n < 1000 ? Math.round(n * 1000) : Math.round(n); }
     function num(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString("vi-VN", { maximumFractionDigits: d }) : "—"; }
@@ -128,13 +130,71 @@
       }
       document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
     }
+    function vnNow() { return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })); }
+    function afterOpen() {
+      const d = vnNow();
+      const day = d.getDay();
+      if (day === 0 || day === 6) return false;
+      return d.getHours() * 60 + d.getMinutes() >= 9 * 60;
+    }
+    function parsePrev(text) {
+      const m = String(text || "").match(/([+-]?[\d.,]+)\s*\(([+-]?[\d.,]+)%\)/);
+      if (!m) return { change: 0, percent: 0 };
+      const num = v => Number(String(v).replace(/\./g, "").replace(",", "."));
+      return { change: num(m[1]) * 1000, percent: num(m[2]) };
+    }
+    function rankHot(list) {
+      const top = (floor, n) => list.filter(s => s.floor === floor && s.percent > 0).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
+      return [...top("HSX", 35), ...top("HNX", 15)];
+    }
+    async function fetchPrevHot() {
+      if (!universe.length) await loadUniverse();
+      const key = "hot-prev-" + vnNow().toISOString().slice(0, 10);
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const saved = JSON.parse(cached);
+        hot = rankHot(saved.rows || []);
+        hotMode = "prev";
+        hotDate = saved.date || "";
+        renderHot();
+        return;
+      }
+      const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
+      const rows = [];
+      const symbols = [...floorOf.keys()];
+      for (let i = 0; i < symbols.length; i += 12) {
+        const part = await Promise.all(symbols.slice(i, i + 12).map(async sym => {
+          try {
+            const res = await fetch(`${CAFEF}?Symbol=${sym}&PageIndex=1&PageSize=1`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const row = data?.Data?.Data?.[0];
+            if (!row) return null;
+            const ch = parsePrev(row.ThayDoi);
+            const px = Number(row.GiaDongCua || 0);
+            return { symbol: sym, floor: floorOf.get(sym), price: toVnd(px), change: ch.change, percent: ch.percent, volume: Number(row.KhoiLuongKhopLenh || 0), date: row.Ngay || "" };
+          } catch { return null; }
+        }));
+        rows.push(...part.filter(Boolean));
+      }
+      const date = rows.find(r => r.date)?.date || "";
+      localStorage.setItem(key, JSON.stringify({ date, rows }));
+      hot = rankHot(rows);
+      hotMode = "prev";
+      hotDate = date;
+      renderHot();
+    }
     async function fetchHot() {
       if (!universe.length) await loadUniverse();
+      if (!afterOpen()) { await fetchPrevHot(); return; }
       const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
       const rows = await fetchQuotes(universe.map(x => x.symbol));
-      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym))).filter(s => s.percent > 0);
-      const top = (floor, n) => mapped.filter(s => s.floor === floor).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
-      hot = [...top("HSX", 35), ...top("HNX", 15)];
+      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym)));
+      const live = rankHot(mapped);
+      if (!live.length) { await fetchPrevHot(); return; }
+      hot = live;
+      hotMode = "live";
+      hotDate = "";
       renderHot();
       document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
     }
@@ -161,7 +221,8 @@
     function renderHot() {
       const tb = document.getElementById("hotTable");
       tb.innerHTML = "";
-      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Chưa có mã tăng (chờ khớp lệnh)</td></tr>`; return; }
+      document.getElementById("hotTitle").textContent = hotMode === "live" ? "Realtime · 35 HSX + 15 HNX tăng mạnh" : `Phiên trước${hotDate ? " " + hotDate : ""} · 35 HSX + 15 HNX tăng mạnh`;
+      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">${hotMode === "live" ? "Chưa có mã tăng" : "Đang tải phiên trước..."}</td></tr>`; return; }
       let last = "";
       hot.forEach(s => {
         if (s.floor !== last) {
