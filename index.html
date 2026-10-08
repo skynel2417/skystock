@@ -18,9 +18,11 @@
 <body class="min-h-screen p-4 md:p-6">
   <div class="max-w-6xl mx-auto">
     <h1 class="text-2xl md:text-3xl font-bold mb-2 text-center">Bảng giá Chứng khoán Việt Nam</h1>
-    <p class="text-center text-slate-400 mb-6 text-sm">Dữ liệu demo gần realtime • Cập nhật mỗi 15 giây • Click mã để xem chart nến</p>
+    <p class="text-center text-slate-400 mb-4 text-sm">
+      Dữ liệu thật từ backend • Cập nhật mỗi 30 giây • Click mã để xem chart nến
+    </p>
+    <p id="status" class="text-center text-xs text-slate-500 mb-6">Đang tải dữ liệu...</p>
 
-    <!-- Bảng giá -->
     <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
       <table class="w-full text-sm">
         <thead class="bg-slate-800 text-slate-300">
@@ -37,64 +39,41 @@
       </table>
     </div>
 
-    <!-- Chart -->
     <div class="mt-8">
       <h2 id="chartTitle" class="text-xl font-semibold mb-3">Biểu đồ nến: Chọn một mã ở trên</h2>
       <div id="chart" class="w-full h-80 md:h-96 rounded-xl border border-slate-700 bg-slate-900"></div>
     </div>
-
-    <p class="text-center text-xs text-slate-500 mt-8">
-      Đây là phiên bản demo. Dữ liệu đang dùng mẫu mô phỏng. Sau này có thể nâng cấp lên dữ liệu thật.
-    </p>
   </div>
 
   <script>
-    // ===== Dữ liệu mẫu (mô phỏng gần realtime) =====
-       const stocks = [
-      // ===== VN30 =====
-      { symbol: "ACB", name: "Á Châu", price: 24500, change: 150, percent: 0.62, volume: 1850000, ceiling: 26200, floor: 22800 },
-      { symbol: "BCM", name: "Becamex", price: 68500, change: -400, percent: -0.58, volume: 320000, ceiling: 73300, floor: 63700 },
-      { symbol: "BID", name: "BIDV", price: 48500, change: 300, percent: 0.62, volume: 2100000, ceiling: 51900, floor: 45100 },
-      { symbol: "BVH", name: "Bảo Việt", price: 42500, change: -200, percent: -0.47, volume: 450000, ceiling: 45500, floor: 39500 },
-      { symbol: "CTG", name: "VietinBank", price: 36500, change: 250, percent: 0.69, volume: 3200000, ceiling: 39100, floor: 33900 },
-      { symbol: "FPT", name: "FPT Corp", price: 112500, change: 2500, percent: 2.27, volume: 980000, ceiling: 120000, floor: 105000 },
-      { symbol: "GAS", name: "PV Gas", price: 78500, change: -500, percent: -0.63, volume: 450000, ceiling: 84000, floor: 73000 },
-      { symbol: "GVR", name: "Cao su VN", price: 28500, change: 400, percent: 1.42, volume: 890000, ceiling: 30500, floor: 26500 },
-      { symbol: "HDB", name: "HDBank", price: 26500, change: 200, percent: 0.76, volume: 1650000, ceiling: 28400, floor: 24600 },
-      { symbol: "HPG", name: "Hòa Phát", price: 29400, change: 450, percent: 1.55, volume: 2100000, ceiling: 31400, floor: 27400 },
-      { symbol: "MBB", name: "MB Bank", price: 23500, change: 150, percent: 0.64, volume: 2800000, ceiling: 25200, floor: 21800 },
-      { symbol: "MSN", name: "Masan", price: 71200, change: 1200, percent: 1.71, volume: 670000, ceiling: 76200, floor: 66200 },
-      { symbol: "MWG", name: "Mobile World", price: 58500, change: -800, percent: -1.35, volume: 1100000, ceiling: 62500, floor: 54500 },
-      { symbol: "PLX", name: "Petrolimex", price: 38500, change: -300, percent: -0.77, volume: 580000, ceiling: 41200, floor: 35800 },
-      { symbol: "SAB", name: "Sabeco", price: 58500, change: 500, percent: 0.86, volume: 210000, ceiling: 62600, floor: 54400 },
-      { symbol: "SHB", name: "SHB", price: 11500, change: 100, percent: 0.88, volume: 4500000, ceiling: 12300, floor: 10700 },
-      { symbol: "SSB", name: "SeABank", price: 18500, change: -150, percent: -0.80, volume: 980000, ceiling: 19800, floor: 17200 },
-      { symbol: "SSI", name: "SSI Securities", price: 34200, change: 700, percent: 2.09, volume: 3200000, ceiling: 36600, floor: 31800 },
-      { symbol: "STB", name: "Sacombank", price: 32500, change: 400, percent: 1.25, volume: 4100000, ceiling: 34800, floor: 30200 },
-      { symbol: "TCB", name: "Techcombank", price: 24500, change: 300, percent: 1.24, volume: 1850000, ceiling: 26200, floor: 22800 },
-      { symbol: "TPB", name: "TPBank", price: 17500, change: 100, percent: 0.57, volume: 2200000, ceiling: 18700, floor: 16300 },
-      { symbol: "VCB", name: "Vietcombank", price: 91200, change: 400, percent: 0.44, volume: 1250000, ceiling: 97500, floor: 84900 },
-      { symbol: "VHM", name: "Vinhomes", price: 42500, change: -300, percent: -0.70, volume: 1500000, ceiling: 45500, floor: 39500 },
-      { symbol: "VIB", name: "VIB", price: 18500, change: 200, percent: 1.09, volume: 1350000, ceiling: 19800, floor: 17200 },
-      { symbol: "VIC", name: "Vingroup", price: 42500, change: 100, percent: 0.24, volume: 890000, ceiling: 45500, floor: 39500 },
-      { symbol: "VJC", name: "Vietjet", price: 98500, change: -800, percent: -0.81, volume: 420000, ceiling: 105400, floor: 91600 },
-      { symbol: "VNM", name: "Vinamilk", price: 67800, change: -200, percent: -0.29, volume: 750000, ceiling: 72500, floor: 63100 },
-      { symbol: "VPB", name: "VPBank", price: 19500, change: 150, percent: 0.78, volume: 3100000, ceiling: 20900, floor: 18100 },
-      { symbol: "VRE", name: "Vincom Retail", price: 18500, change: -100, percent: -0.54, volume: 980000, ceiling: 19800, floor: 17200 },
+    const API_BASE = "https://skystock-api-1.onrender.com";
+    const SYMBOLS = "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE,DGC,PNJ,REE,KDH,DXG";
 
-      // ===== Một số mã phổ biến khác =====
-      { symbol: "DGC", name: "Đức Giang", price: 98500, change: 1200, percent: 1.23, volume: 650000, ceiling: 105400, floor: 91600 },
-      { symbol: "PNJ", name: "PNJ", price: 92500, change: 800, percent: 0.87, volume: 380000, ceiling: 99000, floor: 86000 },
-      { symbol: "REE", name: "Cơ điện lạnh", price: 68500, change: 300, percent: 0.44, volume: 290000, ceiling: 73300, floor: 63700 },
-      { symbol: "KDH", name: "Khang Điền", price: 32500, change: -200, percent: -0.61, volume: 850000, ceiling: 34800, floor: 30200 },
-      { symbol: "DXG", name: "Đất Xanh", price: 14500, change: 150, percent: 1.05, volume: 2100000, ceiling: 15500, floor: 13500 }
-    ];
-
+    let stocks = [];
     let selectedSymbol = null;
     let chart = null;
     let candleSeries = null;
 
-    // Tạo bảng giá
+    async function fetchBoard() {
+      const statusEl = document.getElementById("status");
+      try {
+        statusEl.textContent = "Đang tải dữ liệu thật...";
+        const res = await fetch(`${API_BASE}/api/board?symbols=${SYMBOLS}`);
+        if (!res.ok) throw new Error("API lỗi");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          stocks = data;
+          statusEl.textContent = `Đã cập nhật lúc ${new Date().toLocaleTimeString("vi-VN")} • ${data.length} mã`;
+          renderTable();
+        } else {
+          statusEl.textContent = "API trả về rỗng, đang dùng dữ liệu mẫu";
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Không kết nối được backend (có thể đang ngủ). Dùng dữ liệu mẫu.";
+      }
+    }
+
     function renderTable() {
       const tbody = document.getElementById("priceTable");
       tbody.innerHTML = "";
@@ -104,36 +83,18 @@
         tr.onclick = () => showChart(s.symbol);
         const changeClass = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
         tr.innerHTML = `
-          <td class="py-3 px-4 font-bold">${s.symbol}</td>
-          <td class="py-3 px-4 text-right font-medium ${changeClass}">${s.price.toLocaleString()}</td>
-          <td class="py-3 px-4 text-right ${changeClass}">${s.change > 0 ? "+" : ""}${s.change.toLocaleString()}</td>
-          <td class="py-3 px-4 text-right ${changeClass}">${s.percent > 0 ? "+" : ""}${s.percent.toFixed(2)}%</td>
-          <td class="py-3 px-4 text-right">${s.volume.toLocaleString()}</td>
-          <td class="py-3 px-4 text-right text-xs text-slate-400">${s.ceiling.toLocaleString()} / ${s.floor.toLocaleString()}</td>
+          <td class="py-3 px-4 font-bold">${s.symbol || ""}</td>
+          <td class="py-3 px-4 text-right font-medium ${changeClass}">${Number(s.price || 0).toLocaleString()}</td>
+          <td class="py-3 px-4 text-right ${changeClass}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString()}</td>
+          <td class="py-3 px-4 text-right ${changeClass}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}%</td>
+          <td class="py-3 px-4 text-right">${Number(s.volume || 0).toLocaleString()}</td>
+          <td class="py-3 px-4 text-right text-xs text-slate-400">${Number(s.ceiling || 0).toLocaleString()} / ${Number(s.floor || 0).toLocaleString()}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // Tạo dữ liệu nến mẫu (30 ngày)
-    function generateCandleData(symbol) {
-      const data = [];
-      let price = stocks.find(s => s.symbol === symbol)?.price / 1000 || 50;
-      const now = Math.floor(Date.now() / 1000);
-      for (let i = 30; i >= 0; i--) {
-        const time = now - i * 86400;
-        const open = price;
-        const close = price + (Math.random() - 0.48) * 2;
-        const high = Math.max(open, close) + Math.random() * 1.2;
-        const low = Math.min(open, close) - Math.random() * 1.2;
-        data.push({ time, open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2) });
-        price = close;
-      }
-      return data;
-    }
-
-    // Hiện chart
-    function showChart(symbol) {
+    async function showChart(symbol) {
       selectedSymbol = symbol;
       document.getElementById("chartTitle").textContent = `Biểu đồ nến: ${symbol}`;
       renderTable();
@@ -157,29 +118,40 @@
         wickDownColor: "#ef4444"
       });
 
-      candleSeries.setData(generateCandleData(symbol));
+      try {
+        const res = await fetch(`${API_BASE}/api/history/${symbol}?days=60`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          candleSeries.setData(data);
+        } else {
+          // fallback mẫu nếu history lỗi
+          candleSeries.setData(generateSample(symbol));
+        }
+      } catch {
+        candleSeries.setData(generateSample(symbol));
+      }
       chart.timeScale().fitContent();
-
-      window.addEventListener("resize", () => {
-        chart.applyOptions({ width: container.clientWidth });
-      });
     }
 
-    // Mô phỏng giá thay đổi nhẹ mỗi 15 giây
-    function updatePrices() {
-      stocks.forEach(s => {
-        const delta = Math.round((Math.random() - 0.5) * 400);
-        s.price = Math.max(s.floor, Math.min(s.ceiling, s.price + delta));
-        s.change = s.price - (s.price - delta); // tạm
-        s.percent = +(s.change / (s.price - s.change) * 100).toFixed(2);
-        s.volume += Math.floor(Math.random() * 50000);
-      });
-      renderTable();
+    function generateSample(symbol) {
+      const data = [];
+      let price = 50;
+      const now = Math.floor(Date.now() / 1000);
+      for (let i = 60; i >= 0; i--) {
+        const time = now - i * 86400;
+        const open = price;
+        const close = price + (Math.random() - 0.48) * 2;
+        const high = Math.max(open, close) + Math.random();
+        const low = Math.min(open, close) - Math.random();
+        data.push({ time, open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2) });
+        price = close;
+      }
+      return data;
     }
 
     // Khởi chạy
-    renderTable();
-    setInterval(updatePrices, 15000);
+    fetchBoard();
+    setInterval(fetchBoard, 30000); // cập nhật mỗi 30 giây
   </script>
 </body>
 </html>
