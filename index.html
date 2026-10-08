@@ -13,43 +13,56 @@
     .ref { color: #facc15; }
     tr:hover { background: #1e293b; cursor: pointer; }
     .selected { background: #1e3a5f !important; }
-    #priceTable td, #priceTable th { padding: 4px 8px; font-size: 12px; }
-    #chart { height: 100%; }
+    #priceTable td, #priceTable th { padding: 3px 6px; font-size: 11px; white-space: nowrap; }
   </style>
 </head>
 <body class="h-screen flex flex-col">
   <!-- Header -->
-  <div class="px-4 py-2 border-b border-slate-700 flex items-center justify-between gap-4 flex-shrink-0">
-    <h1 class="text-lg font-bold whitespace-nowrap">Bảng giá CK Việt Nam</h1>
+  <div class="px-3 py-1.5 border-b border-slate-700 flex items-center gap-3 flex-shrink-0">
+    <h1 class="text-base font-bold">Bảng giá CK</h1>
     <input id="searchInput" type="text" placeholder="Tìm mã..." 
-           class="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm w-32 focus:outline-none focus:border-blue-500" />
-    <p id="status" class="text-xs text-slate-400 truncate">Đang tải...</p>
+           class="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs w-24 focus:outline-none" />
+    <p id="status" class="text-xs text-slate-400 ml-auto"></p>
   </div>
 
-  <!-- Main content: bảng giá + chart nằm ngang -->
+  <!-- Main -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- Bảng giá bên trái -->
-    <div class="w-1/2 overflow-auto border-r border-slate-700">
-      <table class="w-full text-left">
-        <thead class="bg-slate-800 text-slate-300 sticky top-0">
+    <!-- Bảng giá hẹp bên trái -->
+    <div class="w-72 flex-shrink-0 overflow-auto border-r border-slate-700">
+      <table class="w-full">
+        <thead class="bg-slate-800 text-slate-300 sticky top-0 text-xs">
           <tr>
-            <th class="py-2 px-2">Mã</th>
-            <th class="py-2 px-2 text-right">Giá</th>
-            <th class="py-2 px-2 text-right">±</th>
-            <th class="py-2 px-2 text-right">%</th>
-            <th class="py-2 px-2 text-right">KL</th>
+            <th class="text-left">Mã</th>
+            <th class="text-right">Giá</th>
+            <th class="text-right">±</th>
+            <th class="text-right">%</th>
+            <th class="text-right">KL</th>
           </tr>
         </thead>
         <tbody id="priceTable"></tbody>
       </table>
     </div>
 
-    <!-- Chart bên phải -->
-    <div class="w-1/2 flex flex-col">
-      <div class="px-3 py-2 border-b border-slate-700 text-sm font-medium" id="chartTitle">
-        Chọn mã để xem chart
+    <!-- Phần phải: thông tin + chart -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Khung thông tin doanh nghiệp -->
+      <div id="companyInfo" class="px-4 py-2 border-b border-slate-700 bg-slate-900/50 text-sm hidden">
+        <div class="flex items-center gap-3">
+          <span id="infoSymbol" class="text-lg font-bold text-blue-400"></span>
+          <span id="infoName" class="font-medium"></span>
+          <span id="infoExchange" class="text-xs text-slate-400 px-1.5 py-0.5 bg-slate-800 rounded"></span>
+        </div>
+        <div class="mt-1 text-xs text-slate-400 flex gap-4 flex-wrap">
+          <span>Ngành: <b id="infoIndustry" class="text-slate-300"></b></span>
+          <span id="infoExtra"></span>
+        </div>
       </div>
-      <div id="chart" class="flex-1"></div>
+
+      <!-- Chart -->
+      <div class="flex-1 relative">
+        <div id="chartTitle" class="absolute top-2 left-3 text-xs text-slate-400 z-10">Chọn mã để xem chart</div>
+        <div id="chart" class="w-full h-full"></div>
+      </div>
     </div>
   </div>
 
@@ -66,32 +79,21 @@
     async function fetchBoard() {
       const statusEl = document.getElementById("status");
       try {
-        statusEl.textContent = "Đang tải...";
         const res = await fetch(`${API_BASE}/api/board?symbols=${SYMBOLS}`);
-        if (!res.ok) throw new Error("API lỗi");
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           stocks = data;
           applyFilter();
-          statusEl.textContent = `Cập nhật ${new Date().toLocaleTimeString("vi-VN")} • ${filteredStocks.length} mã`;
-        } else {
-          statusEl.textContent = "API rỗng";
+          statusEl.textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${filteredStocks.length} mã`;
         }
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Backend đang ngủ / lỗi kết nối";
+      } catch (e) {
+        statusEl.textContent = "Lỗi kết nối backend";
       }
     }
 
     function applyFilter() {
       const keyword = document.getElementById("searchInput").value.trim().toUpperCase();
-      filteredStocks = stocks.filter(s => {
-        if (!s.symbol) return false;
-        // Sau này bạn muốn lọc chỉ mã tăng thì thêm điều kiện ở đây
-        // Ví dụ: if (s.change <= 0) return false;
-        if (keyword && !s.symbol.includes(keyword)) return false;
-        return true;
-      });
+      filteredStocks = stocks.filter(s => s.symbol && (!keyword || s.symbol.includes(keyword)));
       renderTable();
     }
 
@@ -101,62 +103,71 @@
       filteredStocks.forEach(s => {
         const tr = document.createElement("tr");
         tr.className = selectedSymbol === s.symbol ? "selected" : "";
-        tr.onclick = () => showChart(s.symbol);
-        const changeClass = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
+        tr.onclick = () => selectStock(s.symbol);
+        const cls = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
         tr.innerHTML = `
           <td class="font-bold">${s.symbol}</td>
-          <td class="text-right ${changeClass}">${Number(s.price||0).toLocaleString()}</td>
-          <td class="text-right ${changeClass}">${s.change>0?"+":""}${Number(s.change||0).toLocaleString()}</td>
-          <td class="text-right ${changeClass}">${s.percent>0?"+":""}${Number(s.percent||0).toFixed(2)}%</td>
-          <td class="text-right text-slate-400">${Number(s.volume||0).toLocaleString()}</td>
+          <td class="text-right ${cls}">${Number(s.price||0).toLocaleString()}</td>
+          <td class="text-right ${cls}">${s.change>0?"+":""}${Number(s.change||0).toLocaleString()}</td>
+          <td class="text-right ${cls}">${s.percent>0?"+":""}${Number(s.percent||0).toFixed(2)}</td>
+          <td class="text-right text-slate-500">${(Number(s.volume||0)/1000).toFixed(0)}K</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    async function showChart(symbol) {
+    async function selectStock(symbol) {
       selectedSymbol = symbol;
-      document.getElementById("chartTitle").textContent = `Chart: ${symbol}`;
       renderTable();
+      document.getElementById("chartTitle").textContent = symbol;
 
+      // Hiện khung thông tin
+      const infoBox = document.getElementById("companyInfo");
+      infoBox.classList.remove("hidden");
+      document.getElementById("infoSymbol").textContent = symbol;
+      document.getElementById("infoName").textContent = "Đang tải...";
+      document.getElementById("infoExchange").textContent = "";
+      document.getElementById("infoIndustry").textContent = "";
+      document.getElementById("infoExtra").textContent = "";
+
+      // Lấy thông tin công ty
+      try {
+        const res = await fetch(`${API_BASE}/api/company/${symbol}`);
+        const info = await res.json();
+        document.getElementById("infoName").textContent = info.full_name || info.name || symbol;
+        document.getElementById("infoExchange").textContent = info.exchange || "";
+        document.getElementById("infoIndustry").textContent = info.industry || "—";
+        if (info.employees) document.getElementById("infoExtra").textContent = `Nhân sự: ${info.employees}`;
+      } catch (e) {
+        document.getElementById("infoName").textContent = symbol;
+      }
+
+      // Chart
       const container = document.getElementById("chart");
       container.innerHTML = "";
-
       chart = LightweightCharts.createChart(container, {
         layout: { background: { color: "#0f172a" }, textColor: "#94a3b8" },
         grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
         width: container.clientWidth,
-        height: container.clientHeight,
-        timeScale: { timeVisible: true }
+        height: container.clientHeight
       });
-
       candleSeries = chart.addCandlestickSeries({
         upColor: "#22c55e", downColor: "#ef4444",
         borderUpColor: "#22c55e", borderDownColor: "#ef4444",
         wickUpColor: "#22c55e", wickDownColor: "#ef4444"
       });
-
       try {
         const res = await fetch(`${API_BASE}/api/history/${symbol}?days=60`);
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          candleSeries.setData(data);
-        }
-      } catch (e) {
-        console.error(e);
-      }
+        if (data?.length) candleSeries.setData(data);
+      } catch {}
       chart.timeScale().fitContent();
-
-      // Resize khi cửa sổ thay đổi
       window.addEventListener("resize", () => {
         chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       });
     }
 
-    // Tìm kiếm realtime
     document.getElementById("searchInput").addEventListener("input", applyFilter);
-
-    // Khởi chạy
     fetchBoard();
     setInterval(fetchBoard, 30000);
   </script>
