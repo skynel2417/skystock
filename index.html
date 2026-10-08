@@ -10,7 +10,9 @@
     body { background:#0f172a; color:#e2e8f0; margin:0; }
     .up { color:#22c55e; } .down { color:#ef4444; } .ref { color:#facc15; }
     tr:hover { background:#1e293b; cursor:pointer; } .selected { background:#1e3a5f !important; }
-    #priceTable td, #priceTable th, #hotTable td, #hotTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
+    #priceTable td, #priceTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
+    #hotTable td, #hotTable th { padding:0 4px; white-space:nowrap; font-size:11px; line-height:1.05; }
+    #hotTable .grp td { padding:1px 4px; }
     .info-label { color:#94a3b8; font-size:11px; }
     .tf-btn { padding:3px 10px; font-size:12px; border-radius:4px; background:#1e293b; border:1px solid #334155; cursor:pointer; }
     .tf-btn.active { background:#1e40af; }
@@ -19,7 +21,12 @@
       body { overflow:hidden; height:100vh; }
       .main-layout { display:flex; height:calc(100vh - 40px); }
       .col-board { width:268px; min-width:220px; overflow:auto; border-right:1px solid #334155; }
-      .col-hot { width:392px; min-width:320px; overflow:auto; border-right:1px solid #334155; }
+      .col-hot { width:392px; min-width:320px; overflow:hidden; border-right:1px solid #334155; display:flex; flex-direction:column; }
+      .col-hot .sec-h { position:static; flex:0 0 auto; padding:3px 6px; font-size:10px; }
+      .col-hot table { flex:1 1 auto; height:100%; }
+      .col-hot thead { position:static; }
+      #hotTable th, #hotTable td { height:calc((100vh - 78px) / 53); font-size:clamp(8px, 1.05vh, 11px); }
+      #hotTable .grp td { height:calc((100vh - 78px) / 70); font-size:9px; }
       .col-chart { flex:1; min-width:360px; display:flex; flex-direction:column; }
     }
     @media (max-width:767px) {
@@ -79,12 +86,14 @@
     function ty(v) { const n = Number(v); if (!n) return "—"; return (n / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " tỷ"; }
     function mapVps(row, floor) {
       const last = Number(row.lastPrice || 0), ref = Number(row.r || 0);
+      const traded = last > 0 && ref > 0;
+      const px = traded ? last : Number(row.closePrice || 0);
       return {
         symbol: row.sym,
         floor: floor || row.mc || "",
-        price: toVnd(last || row.closePrice),
-        change: (last - ref) * 1000,
-        percent: ref ? (last - ref) / ref * 100 : 0,
+        price: toVnd(px),
+        change: traded ? (last - ref) * 1000 : 0,
+        percent: traded ? (last - ref) / ref * 100 : 0,
         volume: Number(row.lot || 0) * 10,
         ceiling: toVnd(row.c),
         floorPrice: toVnd(row.f)
@@ -123,7 +132,7 @@
       if (!universe.length) await loadUniverse();
       const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
       const rows = await fetchQuotes(universe.map(x => x.symbol));
-      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym))).filter(s => s.price > 0);
+      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym))).filter(s => s.percent > 0);
       const top = (floor, n) => mapped.filter(s => s.floor === floor).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
       hot = [...top("HSX", 35), ...top("HNX", 15)];
       renderHot();
@@ -152,13 +161,14 @@
     function renderHot() {
       const tb = document.getElementById("hotTable");
       tb.innerHTML = "";
-      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Đang tải bảng giá...</td></tr>`; return; }
+      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Chưa có mã tăng (chờ khớp lệnh)</td></tr>`; return; }
       let last = "";
       hot.forEach(s => {
         if (s.floor !== last) {
           last = s.floor;
           const hr = document.createElement("tr");
-          hr.innerHTML = `<td colspan="6" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · 35 mã tăng mạnh nhất" : "HNX · 15 mã tăng mạnh nhất"}</td>`;
+          hr.className = "grp";
+          hr.innerHTML = `<td colspan="6" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · tăng mạnh" : "HNX · tăng mạnh"}</td>`;
           tb.appendChild(hr);
         }
         const tr = document.createElement("tr");
