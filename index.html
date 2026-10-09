@@ -4,19 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Bảng giá Chứng khoán Việt Nam</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="preconnect" href="https://unpkg.com" />
   <style>
-    body { background:#0f172a; color:#e2e8f0; margin:0; }
+    body { background:#0f172a; color:#e2e8f0; margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
     .up { color:#22c55e; } .down { color:#ef4444; } .ref { color:#facc15; }
     tr:hover { background:#1e293b; cursor:pointer; } .selected { background:#1e3a5f !important; }
     #priceTable td, #priceTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
     #hotTable td, #hotTable th { padding:0 4px; white-space:nowrap; font-size:11px; line-height:1.05; }
     #hotTable .grp td { padding:1px 4px; }
     .info-label { color:#94a3b8; font-size:11px; }
-    .tf-btn { padding:3px 10px; font-size:12px; border-radius:4px; background:#1e293b; border:1px solid #334155; cursor:pointer; }
+    .tf-btn { padding:3px 10px; font-size:12px; border-radius:4px; background:#1e293b; border:1px solid #334155; cursor:pointer; color:#e2e8f0; }
     .tf-btn.active { background:#1e40af; }
     .sec-h { position:sticky; top:0; background:#111827; color:#93c5fd; font-size:11px; font-weight:700; letter-spacing:.02em; padding:6px 8px; border-bottom:1px solid #334155; }
+    .flex { display:flex; } .flex-col { flex-direction:column; } .items-center { align-items:center; }
+    .gap-2 { gap:8px; } .flex-1 { flex:1; } .ml-auto { margin-left:auto; }
+    .px-3 { padding-left:12px; padding-right:12px; } .py-2 { padding-top:8px; padding-bottom:8px; }
+    .py-1 { padding-top:4px; padding-bottom:4px; } .px-2 { padding-left:8px; padding-right:8px; }
+    .border-b { border-bottom:1px solid #334155; }
+    .text-base { font-size:16px; } .text-sm { font-size:14px; } .text-xs { font-size:12px; }
+    .font-bold { font-weight:700; } .font-semibold { font-weight:600; }
+    .bg-slate-800 { background:#1e293b; } .w-full { width:100%; } .w-24 { width:96px; }
+    .text-slate-400 { color:#94a3b8; } .text-slate-500 { color:#64748b; } .text-slate-300 { color:#cbd5e1; }
+    .text-blue-400 { color:#60a5fa; } .text-blue-300 { color:#93c5fd; }
+    .text-left { text-align:left; } .text-right { text-align:right; } .text-center { text-align:center; }
+    .sticky { position:sticky; } .top-head { top:29px; }
+    .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .justify-between { justify-content:space-between; } .gap-3 { gap:12px; }
+    .py-4 { padding-top:16px; padding-bottom:16px; } .mt-1 { margin-top:4px; }
+    #searchInput { background:#1e293b; border:1px solid #475569; border-radius:4px; color:#e2e8f0; }
+    #searchInput:focus { outline:none; border-color:#3b82f6; }
+    .profile-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:16px; row-gap:4px; }
     @media (min-width:768px) {
       body { overflow:hidden; height:100vh; }
       .main-layout { display:flex; height:calc(100vh - 40px); }
@@ -28,6 +45,7 @@
       #hotTable th, #hotTable td { height:calc((100vh - 78px) / 53); font-size:clamp(8px, 1.05vh, 11px); }
       #hotTable .grp td { height:calc((100vh - 78px) / 70); font-size:9px; }
       .col-chart { flex:1; min-width:360px; display:flex; flex-direction:column; }
+      .profile-grid { grid-template-columns:repeat(4, 1fr); }
     }
     .tabbar { display:none; }
     @media (max-width:767px) {
@@ -46,7 +64,6 @@
       .col-hot table, .col-hot thead { height:auto; position:static; }
       .col-chart { min-width:0; }
       #companyPanel { font-size:13px; }
-      #companyPanel .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
       #chart { min-height:0; flex:1; }
       .tf-btn { min-height:36px; padding:6px 12px; font-size:14px; }
       .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:20; background:#0b1220; border-top:1px solid #334155; padding-bottom:env(safe-area-inset-bottom); }
@@ -56,16 +73,16 @@
   </style>
 </head>
 <body class="flex flex-col">
-  <div class="topbar px-3 py-2 border-b border-slate-700 flex items-center gap-2">
+  <div class="topbar px-3 py-2 border-b flex items-center gap-2">
     <h1 class="text-base font-bold">Bảng giá CK</h1>
-    <input id="searchInput" placeholder="Tìm mã..." class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm w-24 focus:outline-none" />
+    <input id="searchInput" placeholder="Tìm mã..." class="px-2 py-1 text-sm w-24" />
     <p id="status" class="text-xs text-slate-400 ml-auto">Đang tải...</p>
   </div>
   <div class="main-layout">
     <div class="col-board">
       <div class="sec-h">Danh sách lọc</div>
       <table class="w-full">
-        <thead class="bg-slate-800 sticky top-[29px] text-xs">
+        <thead class="bg-slate-800 sticky top-head text-xs">
           <tr><th class="text-left">Mã</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
         </thead>
         <tbody id="priceTable"></tbody>
@@ -74,20 +91,20 @@
     <div class="col-hot">
       <div class="sec-h" id="hotTitle">Bảng giá · 35 HSX + 15 HNX tăng mạnh</div>
       <table class="w-full">
-        <thead class="bg-slate-800 sticky top-[29px] text-xs">
+        <thead class="bg-slate-800 sticky top-head text-xs">
           <tr><th class="text-left">Mã</th><th class="text-left">Sàn</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
         </thead>
         <tbody id="hotTable"></tbody>
       </table>
     </div>
     <div class="col-chart">
-      <div class="px-3 py-1.5 border-b border-slate-700 flex gap-2 items-center">
+      <div class="px-3 py-1 border-b flex gap-2 items-center">
         <span id="chartTitle" class="text-xs text-slate-400">Chart</span>
         <button class="tf-btn active" data-tf="D" onclick="changeTimeframe('D')">Ngày</button>
         <button class="tf-btn" data-tf="W" onclick="changeTimeframe('W')">Tuần</button>
         <button class="tf-btn" data-tf="M" onclick="changeTimeframe('M')">Tháng</button>
       </div>
-      <div id="companyPanel" class="px-3 py-2 border-b border-slate-700 text-xs"><span class="text-slate-500">Chọn mã để xem thông tin</span></div>
+      <div id="companyPanel" class="px-3 py-2 border-b text-xs"><span class="text-slate-500">Chọn mã để xem thông tin</span></div>
       <div id="chart" class="flex-1" style="min-height:240px"></div>
     </div>
   </div>
@@ -96,15 +113,24 @@
     <button type="button" data-tab="hot" onclick="showTab('hot')">Nóng</button>
     <button type="button" data-tab="chart" onclick="showTab('chart')">Chart</button>
   </nav>
+  <script defer src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     const VPS = "https://bgapidatafeed.vps.com.vn/getliststockdata";
     const VPS_LIST = "https://bgapidatafeed.vps.com.vn/getlistallstock";
-    const CAFEF = "https://cafef.vn/du-lieu/ajax/pagenew/datahistory/pricehistory.ashx";
     const API = "https://skystock-api-1.onrender.com";
     const PROFILE = "https://api.simplize.vn/api/company/summary";
+    const QUOTE_TTL = 8000;
+    const LIST_TTL = 5 * 60 * 1000;
     let hotMode = "prev";
     let symbols = [], stocks = [], filtered = [], selected = null, profiles = {};
-    let universe = [], hot = [], hotDate = "", chart = null, candleSeries = null, volumeSeries = null, rawHistory = [], currentTF = "D";
+    let universe = [], hot = [], hotDate = "", chart = null, candleSeries = null, volumeSeries = null;
+    let rawHistory = [], currentTF = "D", fittedSymbol = "";
+    let listLoadedAt = 0, prevLoaded = false, hotInflight = null, boardInflight = null;
+    const quoteCache = new Map();
+    const historyCache = new Map();
+    const aggCache = new Map();
+    let historyAbort = null;
+    let profileAbort = null;
 
     function toVnd(v) { const n = Number(v); if (!n) return 0; return n < 1000 ? Math.round(n * 1000) : Math.round(n); }
     function num(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString("vi-VN", { maximumFractionDigits: d }) : "—"; }
@@ -124,101 +150,152 @@
         floorPrice: toVnd(row.f)
       };
     }
-    async function fetchQuotes(list) {
-      const rows = [];
-      for (let i = 0; i < list.length; i += 60) {
-        const res = await fetch(`${VPS}/${list.slice(i, i + 60).join(",")}`);
-        if (res.ok) rows.push(...await res.json());
-      }
-      return rows;
+    function vnNow() { return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })); }
+    function inSession() {
+      const d = vnNow();
+      const day = d.getDay();
+      if (day === 0 || day === 6) return false;
+      const m = d.getHours() * 60 + d.getMinutes();
+      return (m >= 9 * 60 && m <= 11 * 60 + 30) || (m >= 13 * 60 && m <= 14 * 60 + 45);
     }
-    async function loadList() {
-      const res = await fetch("https://raw.githubusercontent.com/skynel2417/skystock/main/scan.json?ts=" + Date.now());
+    async function fetchQuotes(list) {
+      const now = Date.now();
+      const fresh = [];
+      const need = [];
+      list.forEach(sym => {
+        const hit = quoteCache.get(sym);
+        if (hit && now - hit.ts < QUOTE_TTL) fresh.push(hit.row);
+        else need.push(sym);
+      });
+      for (let i = 0; i < need.length; i += 60) {
+        const res = await fetch(`${VPS}/${need.slice(i, i + 60).join(",")}`);
+        if (!res.ok) continue;
+        const rows = await res.json();
+        const ts = Date.now();
+        rows.forEach(r => quoteCache.set(r.sym, { ts, row: r }));
+        fresh.push(...rows);
+      }
+      return fresh;
+    }
+    async function loadList(force) {
+      if (!force && symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
+      const res = await fetch("scan.json");
       const data = await res.json();
-      symbols = (data.symbols || []).map(s => String(s).toUpperCase());
+      const next = (data.symbols || []).map(s => String(s).toUpperCase());
+      if (next.join(",") !== symbols.join(",")) symbols = next;
+      listLoadedAt = Date.now();
     }
     async function loadUniverse() {
+      if (universe.length) return;
       const res = await fetch(VPS_LIST);
       const data = await res.json();
       universe = data.filter(x => x.type === "S" && /^[A-Z]{3}$/.test(x.stock_code) && (x.post_to === "HOSE" || x.post_to === "HNX"))
         .map(x => ({ symbol: x.stock_code, floor: x.post_to === "HOSE" ? "HSX" : "HNX" }));
     }
+    function setStatus() {
+      const phase = inSession() ? "phiên" : "đóng cửa";
+      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • nóng ${hot.length}`;
+    }
     async function fetchBoard() {
-      if (!symbols.length) { stocks = []; applyFilter(); }
-      else {
-        const rows = await fetchQuotes(symbols);
-        const got = new Map(rows.map(r => [r.sym, mapVps(r)]));
-        stocks = symbols.map(s => got.get(s) || { symbol: s, price: 0, change: 0, percent: 0, volume: 0 });
-        applyFilter();
-      }
-      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
+      if (boardInflight) return boardInflight;
+      boardInflight = (async () => {
+        if (!symbols.length) { stocks = []; applyFilter(); }
+        else {
+          const rows = await fetchQuotes(symbols);
+          const got = new Map(rows.map(r => [r.sym, mapVps(r)]));
+          const next = symbols.map(s => got.get(s) || { symbol: s, price: 0, change: 0, percent: 0, volume: 0 });
+          if (boardChanged(next)) { stocks = next; applyFilter(); }
+        }
+        setStatus();
+      })();
+      try { await boardInflight; } finally { boardInflight = null; }
     }
-    function vnNow() { return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })); }
-    function afterOpen() {
-      const d = vnNow();
-      const day = d.getDay();
-      if (day === 0 || day === 6) return false;
-      return d.getHours() * 60 + d.getMinutes() >= 9 * 60;
-    }
-    function parsePrev(text) {
-      const m = String(text || "").match(/([+-]?[\d.,]+)\s*\(([+-]?[\d.,]+)%\)/);
-      if (!m) return { change: 0, percent: 0 };
-      const num = v => Number(String(v).replace(/\./g, "").replace(",", "."));
-      return { change: num(m[1]) * 1000, percent: num(m[2]) };
+    function boardChanged(next) {
+      if (next.length !== stocks.length) return true;
+      return next.some((s, i) => s.symbol !== stocks[i].symbol || s.price !== stocks[i].price || s.change !== stocks[i].change || s.volume !== stocks[i].volume);
     }
     function rankHot(list) {
       const top = (floor, n) => list.filter(s => s.floor === floor && s.percent > 0 && Number(s.volume) > 10000).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
       return [...top("HSX", 35), ...top("HNX", 15)];
     }
     async function fetchPrevHot() {
-      const res = await fetch("prev.json?ts=" + Date.now());
+      if (prevLoaded && hot.length) { renderHot(); return; }
+      const res = await fetch("prev.json");
       if (!res.ok) throw new Error("prev");
       const saved = await res.json();
       hot = rankHot(saved.rows || []);
       hotMode = "prev";
       hotDate = saved.date || "";
+      prevLoaded = true;
       renderHot();
-      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
+      setStatus();
     }
     async function fetchHot() {
-      if (!universe.length) await loadUniverse();
-      if (!afterOpen()) { await fetchPrevHot(); return; }
-      const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
-      const rows = await fetchQuotes(universe.map(x => x.symbol));
-      const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym)));
-      const live = rankHot(mapped);
-      if (!live.length) { await fetchPrevHot(); return; }
-      hot = live;
-      hotMode = "live";
-      hotDate = "";
-      renderHot();
-      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
+      if (hotInflight) return hotInflight;
+      hotInflight = (async () => {
+        if (!inSession()) { await fetchPrevHot(); return; }
+        if (!universe.length) await loadUniverse();
+        const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
+        const rows = await fetchQuotes(universe.map(x => x.symbol));
+        const live = rankHot(rows.map(r => mapVps(r, floorOf.get(r.sym))));
+        if (!live.length) { await fetchPrevHot(); return; }
+        hot = live;
+        hotMode = "live";
+        hotDate = "";
+        renderHot();
+        setStatus();
+      })();
+      try { await hotInflight; } finally { hotInflight = null; }
     }
     function applyFilter() {
       const q = document.getElementById("searchInput").value.trim().toUpperCase();
       filtered = stocks.filter(s => !q || s.symbol.includes(q));
       renderTable();
     }
+    function sig(s) { return [s.price, s.change, s.percent, s.volume, s.floor || ""].join("|"); }
     function cells(s, withFloor) {
       const cls = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
       return `<td class="font-bold">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
     }
+    function paint(tr, s, withFloor) {
+      const next = sig(s);
+      if (tr.dataset.sig !== next) { tr.innerHTML = cells(s, withFloor); tr.dataset.sig = next; }
+      tr.classList.toggle("selected", selected === s.symbol);
+    }
     function renderTable() {
       const tb = document.getElementById("priceTable");
-      tb.innerHTML = filtered.length ? "" : `<tr><td colspan="5" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`;
+      const scroller = tb.closest(".col-board");
+      const top = scroller ? scroller.scrollTop : 0;
+      if (!filtered.length) {
+        tb.innerHTML = `<tr><td colspan="5" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`;
+        return;
+      }
+      const existing = new Map([...tb.querySelectorAll("tr[data-sym]")].map(tr => [tr.dataset.sym, tr]));
+      const frag = document.createDocumentFragment();
       filtered.forEach(s => {
-        const tr = document.createElement("tr");
-        tr.className = selected === s.symbol ? "selected" : "";
-        tr.onclick = () => selectStock(s);
-        tr.innerHTML = cells(s, false);
-        tb.appendChild(tr);
+        let tr = existing.get(s.symbol);
+        if (!tr) {
+          tr = document.createElement("tr");
+          tr.dataset.sym = s.symbol;
+          tr.onclick = () => selectStock(s);
+        }
+        paint(tr, s, false);
+        frag.appendChild(tr);
       });
+      tb.replaceChildren(frag);
+      if (scroller) scroller.scrollTop = top;
     }
     function renderHot() {
       const tb = document.getElementById("hotTable");
-      tb.innerHTML = "";
+      const scroller = tb.closest(".col-hot");
+      const top = scroller ? scroller.scrollTop : 0;
       document.getElementById("hotTitle").textContent = hotMode === "live" ? "Realtime · 35 HSX + 15 HNX tăng mạnh" : `Phiên trước${hotDate ? " " + hotDate : ""} · 35 HSX + 15 HNX tăng mạnh`;
-      if (!hot.length) { tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">${hotMode === "live" ? "Chưa có mã tăng" : "Đang tải phiên trước..."}</td></tr>`; return; }
+      if (!hot.length) {
+        tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">${hotMode === "live" ? "Chưa có mã tăng" : "Đang tải phiên trước..."}</td></tr>`;
+        return;
+      }
+      const existing = new Map([...tb.querySelectorAll("tr[data-sym]")].map(tr => [tr.dataset.sym, tr]));
+      const frag = document.createDocumentFragment();
       let last = "";
       hot.forEach(s => {
         if (s.floor !== last) {
@@ -226,13 +303,23 @@
           const hr = document.createElement("tr");
           hr.className = "grp";
           hr.innerHTML = `<td colspan="6" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · tăng mạnh" : "HNX · tăng mạnh"}</td>`;
-          tb.appendChild(hr);
+          frag.appendChild(hr);
         }
-        const tr = document.createElement("tr");
-        tr.className = selected === s.symbol ? "selected" : "";
-        tr.onclick = () => selectStock(s);
-        tr.innerHTML = cells(s, true);
-        tb.appendChild(tr);
+        let tr = existing.get(s.symbol);
+        if (!tr) {
+          tr = document.createElement("tr");
+          tr.dataset.sym = s.symbol;
+          tr.onclick = () => selectStock(s);
+        }
+        paint(tr, s, true);
+        frag.appendChild(tr);
+      });
+      tb.replaceChildren(frag);
+      if (scroller) scroller.scrollTop = top;
+    }
+    function markSelected() {
+      document.querySelectorAll("#priceTable tr[data-sym], #hotTable tr[data-sym]").forEach(tr => {
+        tr.classList.toggle("selected", tr.dataset.sym === selected);
       });
     }
     function showTab(name) {
@@ -240,10 +327,9 @@
       document.querySelector(".col-hot").classList.toggle("show", name === "hot");
       document.querySelector(".col-chart").classList.toggle("show", name === "chart");
       document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
-      if (name === "chart" && chart) requestAnimationFrame(() => chart.timeScale().fitContent());
     }
     function ensureChart() {
-      if (chart) return;
+      if (chart || !window.LightweightCharts) return;
       const el = document.getElementById("chart");
       chart = LightweightCharts.createChart(el, { layout: { background: { color: "#0f172a" }, textColor: "#94a3b8" }, grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } }, autoSize: true });
       candleSeries = chart.addCandlestickSeries({ upColor: "#22c55e", downColor: "#ef4444", borderVisible: false, wickUpColor: "#22c55e", wickDownColor: "#ef4444" });
@@ -260,38 +346,45 @@
       if (tf === "W") { const day = d.getUTCDay() || 7; return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 1) / 1000; }
       return time;
     }
-    function aggregate(bars, tf) {
-      if (tf === "D") return bars;
-      const map = new Map();
-      bars.forEach(b => {
-        const key = bucketKey(b.time, tf);
-        const cur = map.get(key);
-        if (!cur) map.set(key, { ...b, time: key });
-        else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; }
-      });
-      return [...map.values()];
+    function aggregate(symbol, bars, tf) {
+      const key = symbol + ":" + tf;
+      if (aggCache.has(key)) return aggCache.get(key);
+      let out = bars;
+      if (tf !== "D") {
+        const map = new Map();
+        bars.forEach(b => {
+          const k = bucketKey(b.time, tf);
+          const cur = map.get(k);
+          if (!cur) map.set(k, { ...b, time: k });
+          else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; }
+        });
+        out = [...map.values()];
+      }
+      aggCache.set(key, out);
+      return out;
     }
-    function drawChart() {
+    function drawChart(fit) {
       ensureChart();
-      const bars = aggregate(rawHistory, currentTF).filter(b => b.time && b.open);
+      if (!chart) return;
+      const bars = aggregate(selected || "", rawHistory, currentTF).filter(b => b.time && b.open);
       candleSeries.setData(bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
       volumeSeries.setData(bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)" })));
-      chart.timeScale().fitContent();
+      if (fit) { chart.timeScale().fitContent(); fittedSymbol = selected; }
     }
     function changeTimeframe(tf) {
       currentTF = tf;
       document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === tf));
-      if (rawHistory.length) drawChart();
+      if (rawHistory.length) drawChart(true);
     }
     function row(label, value) { return `<div class="flex justify-between gap-3"><span class="info-label">${label}</span><span class="text-right">${value}</span></div>`; }
     function renderProfile(stock, profile) {
       const cls = stock.change > 0 ? "up" : stock.change < 0 ? "down" : "ref";
       const p = profile || {};
-      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 mt-1">${row("Ngành", p.industry || p.sector || "—")}${row("EPS", num(p.eps, 0))}${row("P/E", num(p.pe, 2))}${row("Vốn hóa", ty(p.mcap))}</div>`;
+      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="profile-grid mt-1">${row("Ngành", p.industry || p.sector || "—")}${row("EPS", num(p.eps, 0))}${row("P/E", num(p.pe, 2))}${row("Vốn hóa", ty(p.mcap))}</div>`;
     }
-    async function loadProfile(symbol) {
+    async function loadProfile(symbol, signal) {
       if (profiles[symbol]) return profiles[symbol];
-      const res = await fetch(`${PROFILE}/${symbol}`);
+      const res = await fetch(`${PROFILE}/${symbol}`, { signal });
       if (!res.ok) return null;
       const data = (await res.json()).data || {};
       profiles[symbol] = { name: data.nameVi || data.name || symbol, sector: data.bcEconomicSectorName || "", industry: data.industryActivity || "", eps: data.epsRatio, pe: data.peRatio, mcap: data.marketCap, shares: data.outstandingSharesValue };
@@ -300,33 +393,46 @@
     async function selectStock(stock) {
       selected = stock.symbol;
       if (window.matchMedia("(max-width:767px)").matches) showTab("chart");
-      renderTable();
-      renderHot();
+      markSelected();
       document.getElementById("chartTitle").textContent = stock.symbol;
       renderProfile(stock, profiles[stock.symbol]);
-      const profileTask = loadProfile(stock.symbol).then(p => { if (selected === stock.symbol) renderProfile(stock, p); }).catch(() => {});
-      try {
-        const res = await fetch(`${API}/api/history/${stock.symbol}?days=160`);
-        const data = await res.json();
-        rawHistory = Array.isArray(data) ? data.map(normalizeBar) : [];
-      } catch { rawHistory = []; }
+      if (profileAbort) profileAbort.abort();
+      profileAbort = new AbortController();
+      const profileTask = loadProfile(stock.symbol, profileAbort.signal).then(p => { if (selected === stock.symbol) renderProfile(stock, p); }).catch(() => {});
+      if (historyCache.has(stock.symbol)) rawHistory = historyCache.get(stock.symbol);
+      else {
+        if (historyAbort) historyAbort.abort();
+        historyAbort = new AbortController();
+        try {
+          const res = await fetch(`${API}/api/history/${stock.symbol}?days=160`, { signal: historyAbort.signal });
+          const data = await res.json();
+          rawHistory = Array.isArray(data) ? data.map(normalizeBar) : [];
+          if (selected === stock.symbol) historyCache.set(stock.symbol, rawHistory);
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          rawHistory = [];
+        }
+      }
+      if (selected !== stock.symbol) return;
       currentTF = "D";
       document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === "D"));
-      if (rawHistory.length) drawChart();
+      if (rawHistory.length) drawChart(fittedSymbol !== stock.symbol);
       await profileTask;
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
     if (window.matchMedia("(max-width:767px)").matches) showTab("hot");
-    window.addEventListener("resize", () => { if (chart) chart.timeScale().fitContent(); });
-    (async () => {
+    async function tick() {
       try {
-        await loadList();
+        await loadList(false);
+        if (inSession()) await fetchHot();
+        else await fetchPrevHot();
         await fetchBoard();
-        fetchHot().catch(() => {});
-        setInterval(async () => { await loadList(); await fetchBoard(); }, 15000);
-        setInterval(() => { fetchHot().catch(() => {}); }, 20000);
       } catch { document.getElementById("status").textContent = "Lỗi tải dữ liệu"; }
-    })();
+      setTimeout(tick, inSession() ? 12000 : 60000);
+    }
+    function boot() { tick(); }
+    if (document.readyState === "complete") boot();
+    else window.addEventListener("load", boot);
   </script>
 </body>
 </html>
