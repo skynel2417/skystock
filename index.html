@@ -144,7 +144,7 @@
       return { change: num(m[1]) * 1000, percent: num(m[2]) };
     }
     function rankHot(list) {
-      const top = (floor, n) => list.filter(s => s.floor === floor && s.percent > 0).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
+      const top = (floor, n) => list.filter(s => s.floor === floor && s.percent > 0 && Number(s.volume) > 10000).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
       return [...top("HSX", 35), ...top("HNX", 15)];
     }
     async function fetchPrevHot() {
