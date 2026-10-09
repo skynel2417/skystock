@@ -39,8 +39,13 @@
     .metric .val { color:#e2e8f0; }
     .metric.grow { flex:1 1 180px; min-width:0; }
     .metric.grow .val { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .analysis-slot { margin-top:8px; min-height:96px; border:1px dashed #334155; border-radius:6px; padding:8px 10px; color:#64748b; background:#0b1220; }
+    .analysis-slot { margin-top:8px; max-height:178px; overflow:auto; border:1px solid #243044; border-radius:6px; padding:8px 10px; color:#cbd5e1; background:#0b1220; }
     .analysis-slot b { color:#93c5fd; font-weight:600; }
+    .a-line { margin-top:3px; line-height:1.35; }
+    .a-line .tag { color:#93c5fd; font-weight:600; margin-right:4px; }
+    .a-plus { color:#86efac; } .a-minus { color:#fca5a5; }
+    .a-src { margin-top:6px; color:#64748b; font-size:10px; }
+    .a-link { color:#93c5fd; text-decoration:none; font-size:11px; }
     @media (min-width:768px) {
       body { overflow:hidden; height:100vh; }
       .main-layout { display:flex; height:calc(100vh - 40px); }
@@ -70,7 +75,7 @@
       .col-hot table, .col-hot thead { height:auto; position:static; }
       .col-chart { min-width:0; }
       #companyPanel { font-size:13px; flex:0 0 auto; }
-      .analysis-slot { min-height:120px; }
+      .analysis-slot { max-height:200px; }
       #chart { min-height:0; flex:1; }
       .tf-btn { min-height:36px; padding:6px 12px; font-size:14px; }
       .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:20; background:#0b1220; border-top:1px solid #334155; padding-bottom:env(safe-area-inset-bottom); }
@@ -504,7 +509,44 @@
       const cls = stock.change > 0 ? "up" : stock.change < 0 ? "down" : "ref";
       const p = profile || {};
       const industry = p.industry || p.sector || "—";
-      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="profile-grid mt-1">${metric("Ngành", industry, true)}${metric("EPS", num(p.eps, 0))}${metric("P/E", num(p.pe, 2))}${metric("Vốn hóa", ty(p.mcap))}${metric("CPLH", cplh(p.shares))}</div><div class="analysis-slot"><b>Phân tích</b><div class="mt-1">Khu vực để bổ sung nhận định, tín hiệu và ghi chú theo mã.</div></div>`;
+      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="profile-grid mt-1">${metric("Ngành", industry, true)}${metric("EPS", num(p.eps, 0))}${metric("P/E", num(p.pe, 2))}${metric("Vốn hóa", ty(p.mcap))}${metric("CPLH", cplh(p.shares))}</div><div id="analysisSlot" class="analysis-slot"><b>Phân tích</b><div class="mt-1">Đang tóm tắt...</div></div>`;
+      renderAnalysis(stock, p);
+    }
+    let analysisNotes = null;
+    function chatPrompt(stock, profile) {
+      const name = (profile && profile.name) || stock.symbol;
+      return `Tìm hiểu cổ phiếu ${stock.symbol} - ${name}. Nêu mảng kinh doanh đóng góp chủ đạo vào doanh thu và lợi nhuận. Định giá thận trọng cổ phiếu. Các thông tin đáng chú ý ảnh hưởng ngắn hạn, cả tích cực lẫn tiêu cực. Mục tiêu giá ngắn hạn. Trả lời tiếng Việt, ngắn gọn, có số liệu nếu có, không phải khuyến nghị mua bán.`;
+    }
+    function chatUrl(stock, profile) {
+      return "https://chatgpt.com/?q=" + encodeURIComponent(chatPrompt(stock, profile));
+    }
+    async function loadAnalysisNotes() {
+      if (analysisNotes) return analysisNotes;
+      const urls = [`analysis.json?t=${Date.now()}`, `https://raw.githubusercontent.com/skynel2417/skystock/main/analysis.json?t=${Date.now()}`];
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) continue;
+          analysisNotes = await res.json();
+          return analysisNotes;
+        } catch {}
+      }
+      analysisNotes = { notes: {} };
+      return analysisNotes;
+    }
+    function esc(v) { return String(v || "—").replace(/[&<>]/g, c => ({ "&": "&", "<": "<", ">": ">" }[c])); }
+    async function renderAnalysis(stock, profile) {
+      const slot = document.getElementById("analysisSlot");
+      if (!slot || selected !== stock.symbol) return;
+      const pack = await loadAnalysisNotes();
+      if (selected !== stock.symbol) return;
+      const note = (pack.notes || {})[stock.symbol];
+      const link = `<a class="a-link" target="_blank" rel="noopener" href="${chatUrl(stock, profile)}">Hỏi ChatGPT</a>`;
+      if (!note) {
+        slot.innerHTML = `<div class="flex justify-between items-center"><b>Phân tích</b>${link}</div><div class="a-line">Chưa có bản tóm tắt cho ${esc(stock.symbol)}. Bấm Hỏi ChatGPT để chạy prompt mảng kinh doanh, định giá thận trọng, tin ngắn hạn và mục tiêu giá.</div>`;
+        return;
+      }
+      slot.innerHTML = `<div class="flex justify-between items-center"><b>Phân tích</b>${link}</div><div class="a-line"><span class="tag">Mảng chủ đạo</span>${esc(note.core)}</div><div class="a-line"><span class="tag">Định giá thận trọng</span>${esc(note.value)}</div><div class="a-line"><span class="tag">Ngắn hạn</span><span class="a-plus">+ ${esc(note.plus)}</span> <span class="a-minus">− ${esc(note.minus)}</span></div><div class="a-line"><span class="tag">Mục tiêu ngắn hạn</span>${esc(note.target)}</div><div class="a-src">${esc(pack.disclaimer || "Tóm tắt tham khảo, không phải khuyến nghị.")} Cập nhật ${esc(pack.updated || "")}.</div>`;
     }
     async function loadProfile(symbol, signal) {
       if (profiles[symbol]) return profiles[symbol];
