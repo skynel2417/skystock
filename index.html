@@ -283,7 +283,7 @@
     }
     async function fetchPrevHot() {
       if (prevLoaded && hot.length && hotMode === "prev") { renderHot(); return; }
-      const res = await fetch("prev.json");
+      const res = await fetch(`prev.json?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("prev");
       const saved = await res.json();
       hot = rankHot(saved.rows || []);
