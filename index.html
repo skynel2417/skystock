@@ -34,19 +34,24 @@
     .py-4 { padding-top:16px; padding-bottom:16px; } .mt-1 { margin-top:4px; }
     #searchInput { background:#1e293b; border:1px solid #475569; border-radius:4px; color:#e2e8f0; }
     #searchInput:focus { outline:none; border-color:#3b82f6; }
-    .profile-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:16px; row-gap:4px; }
+    .profile-grid { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
+    .metric { display:inline-flex; align-items:baseline; gap:4px; background:#111827; border:1px solid #243044; border-radius:4px; padding:2px 7px; max-width:100%; }
+    .metric .val { color:#e2e8f0; }
+    .metric.grow { flex:1 1 180px; min-width:0; }
+    .metric.grow .val { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .analysis-slot { margin-top:8px; min-height:96px; border:1px dashed #334155; border-radius:6px; padding:8px 10px; color:#64748b; background:#0b1220; }
+    .analysis-slot b { color:#93c5fd; font-weight:600; }
     @media (min-width:768px) {
       body { overflow:hidden; height:100vh; }
       .main-layout { display:flex; height:calc(100vh - 40px); }
-      .col-board { width:268px; min-width:220px; overflow:auto; border-right:1px solid #334155; }
-      .col-hot { width:392px; min-width:320px; overflow:hidden; border-right:1px solid #334155; display:flex; flex-direction:column; }
+      .col-hot { width:336px; min-width:300px; overflow:hidden; border-right:1px solid #334155; display:flex; flex-direction:column; }
+      .col-board { width:292px; min-width:240px; overflow:auto; border-right:1px solid #334155; }
       .col-hot .sec-h { position:static; flex:0 0 auto; padding:3px 6px; font-size:10px; }
       .col-hot table { flex:1 1 auto; height:100%; }
       .col-hot thead { position:static; }
       #hotTable th, #hotTable td { height:calc((100vh - 78px) / 53); font-size:clamp(8px, 1.05vh, 11px); }
       #hotTable .grp td { height:calc((100vh - 78px) / 70); font-size:9px; }
       .col-chart { flex:1; min-width:360px; display:flex; flex-direction:column; }
-      .profile-grid { grid-template-columns:repeat(4, 1fr); }
     }
     .tabbar { display:none; }
     @media (max-width:767px) {
@@ -64,7 +69,8 @@
       #hotTable .grp td { font-size:12px; padding:6px 8px; height:auto; }
       .col-hot table, .col-hot thead { height:auto; position:static; }
       .col-chart { min-width:0; }
-      #companyPanel { font-size:13px; }
+      #companyPanel { font-size:13px; flex:0 0 auto; }
+      .analysis-slot { min-height:120px; }
       #chart { min-height:0; flex:1; }
       .tf-btn { min-height:36px; padding:6px 12px; font-size:14px; }
       .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:20; background:#0b1220; border-top:1px solid #334155; padding-bottom:env(safe-area-inset-bottom); }
@@ -80,22 +86,22 @@
     <p id="status" class="text-xs text-slate-400 ml-auto">Đang tải...</p>
   </div>
   <div class="main-layout">
-    <div class="col-board">
-      <div class="sec-h">Danh sách lọc</div>
-      <table class="w-full">
-        <thead class="bg-slate-800 sticky top-head text-xs">
-          <tr><th class="text-left">Mã</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
-        </thead>
-        <tbody id="priceTable"></tbody>
-      </table>
-    </div>
     <div class="col-hot">
       <div class="sec-h" id="hotTitle">Bảng giá · 35 HSX + 15 HNX tăng mạnh</div>
       <table class="w-full">
         <thead class="bg-slate-800 sticky top-head text-xs">
-          <tr><th class="text-left">Mã</th><th class="text-left">Sàn</th><th class="text-right">Giá</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
+          <tr><th class="text-left">Mã</th><th class="text-left">Sàn</th><th class="text-right">Giá</th><th class="text-right">TB</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
         </thead>
         <tbody id="hotTable"></tbody>
+      </table>
+    </div>
+    <div class="col-board">
+      <div class="sec-h">Danh sách lọc</div>
+      <table class="w-full">
+        <thead class="bg-slate-800 sticky top-head text-xs">
+          <tr><th class="text-left">Mã</th><th class="text-right">Giá</th><th class="text-right">TB</th><th class="text-right">±</th><th class="text-right">%</th><th class="text-right">KL</th></tr>
+        </thead>
+        <tbody id="priceTable"></tbody>
       </table>
     </div>
     <div class="col-chart">
@@ -148,6 +154,7 @@
         change: traded ? (last - ref) * 1000 : 0,
         percent: traded ? (last - ref) / ref * 100 : 0,
         volume: Number(row.lot || 0) * 10,
+        avg: toVnd(row.avePrice || row.avg || 0),
         ceiling: toVnd(row.c),
         floorPrice: toVnd(row.f)
       };
@@ -256,7 +263,7 @@
     }
     function boardChanged(next) {
       if (next.length !== stocks.length) return true;
-      return next.some((s, i) => s.symbol !== stocks[i].symbol || s.price !== stocks[i].price || s.change !== stocks[i].change || s.volume !== stocks[i].volume);
+      return next.some((s, i) => s.symbol !== stocks[i].symbol || s.price !== stocks[i].price || s.avg !== stocks[i].avg || s.change !== stocks[i].change || s.volume !== stocks[i].volume);
     }
     function rankHot(list) {
       const top = (floor, n) => list.filter(s => s.floor === floor && s.percent >= 2 && Number(s.volume) > 10000).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
@@ -357,10 +364,12 @@
       filtered = stocks.filter(s => !q || s.symbol.includes(q));
       renderTable();
     }
-    function sig(s) { return [s.price, s.change, s.percent, s.volume, s.floor || ""].join("|"); }
+    function sig(s) { return [s.price, s.avg || 0, s.change, s.percent, s.volume, s.floor || ""].join("|"); }
     function cells(s, withFloor) {
       const cls = withFloor ? hotCls(Number(s.percent || 0)) : (s.change > 0 ? "up" : s.change < 0 ? "down" : "ref");
-      return `<td class="font-bold ${withFloor ? cls : ""}">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
+      const avg = Number(s.avg || 0);
+      const avgTxt = avg ? avg.toLocaleString("vi-VN") : "—";
+      return `<td class="font-bold ${withFloor ? cls : ""}">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right text-slate-300">${avgTxt}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
     }
     function paint(tr, s, withFloor) {
       const next = sig(s);
@@ -372,7 +381,7 @@
       const scroller = tb.closest(".col-board");
       const top = scroller ? scroller.scrollTop : 0;
       if (!filtered.length) {
-        tb.innerHTML = `<tr><td colspan="5" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Chưa có mã</td></tr>`;
         return;
       }
       const existing = new Map([...tb.querySelectorAll("tr[data-sym]")].map(tr => [tr.dataset.sym, tr]));
@@ -396,7 +405,7 @@
       const top = scroller ? scroller.scrollTop : 0;
       document.getElementById("hotTitle").textContent = `${hotDate || "Phiên đóng cửa gần nhất"} · 35 HSX + 15 HNX · từ 2%`;
       if (!hot.length) {
-        tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Đang tải giá đóng cửa phiên gần nhất...</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="7" class="text-slate-500 text-center py-4">Đang tải giá đóng cửa phiên gần nhất...</td></tr>`;
         return;
       }
       const existing = new Map([...tb.querySelectorAll("tr[data-sym]")].map(tr => [tr.dataset.sym, tr]));
@@ -407,7 +416,7 @@
           last = s.floor;
           const hr = document.createElement("tr");
           hr.className = "grp";
-          hr.innerHTML = `<td colspan="6" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · tăng mạnh" : "HNX · tăng mạnh"}</td>`;
+          hr.innerHTML = `<td colspan="7" class="bg-slate-800 text-blue-300 font-semibold">${s.floor === "HSX" ? "HSX · tăng mạnh" : "HNX · tăng mạnh"}</td>`;
           frag.appendChild(hr);
         }
         let tr = existing.get(s.symbol);
@@ -481,11 +490,21 @@
       document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === tf));
       if (rawHistory.length) drawChart(true);
     }
-    function row(label, value) { return `<div class="flex justify-between gap-3"><span class="info-label">${label}</span><span class="text-right">${value}</span></div>`; }
+    function cplh(v) {
+      const n = Number(v);
+      if (!n) return "—";
+      if (n >= 1e9) return (n / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) + " tỷ";
+      if (n >= 1e6) return (n / 1e6).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + " tr";
+      return n.toLocaleString("vi-VN");
+    }
+    function metric(label, value, grow) {
+      return `<span class="metric${grow ? " grow" : ""}"><span class="info-label">${label}</span><span class="val">${value}</span></span>`;
+    }
     function renderProfile(stock, profile) {
       const cls = stock.change > 0 ? "up" : stock.change < 0 ? "down" : "ref";
       const p = profile || {};
-      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="profile-grid mt-1">${row("Ngành", p.industry || p.sector || "—")}${row("EPS", num(p.eps, 0))}${row("P/E", num(p.pe, 2))}${row("Vốn hóa", ty(p.mcap))}</div>`;
+      const industry = p.industry || p.sector || "—";
+      document.getElementById("companyPanel").innerHTML = `<div class="flex items-baseline gap-2"><span class="text-sm font-bold text-blue-400">${stock.symbol}</span><span class="${cls}">${num(stock.price)} (${stock.change > 0 ? "+" : ""}${num(stock.percent, 2)}%)</span><span class="text-slate-300 truncate">${p.name || "Đang tải tên doanh nghiệp..."}</span></div><div class="profile-grid mt-1">${metric("Ngành", industry, true)}${metric("EPS", num(p.eps, 0))}${metric("P/E", num(p.pe, 2))}${metric("Vốn hóa", ty(p.mcap))}${metric("CPLH", cplh(p.shares))}</div><div class="analysis-slot"><b>Phân tích</b><div class="mt-1">Khu vực để bổ sung nhận định, tín hiệu và ghi chú theo mã.</div></div>`;
     }
     async function loadProfile(symbol, signal) {
       if (profiles[symbol]) return profiles[symbol];
