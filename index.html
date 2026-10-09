@@ -153,12 +153,37 @@
       };
     }
     function vnNow() { return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" })); }
+    function pad(n) { return String(n).padStart(2, "0"); }
+    function dateKey(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+    function dateLabel(d) { return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; }
+    function prevTradingDay(d) {
+      const x = new Date(d.getTime());
+      x.setDate(x.getDate() - 1);
+      while (x.getDay() === 0 || x.getDay() === 6) x.setDate(x.getDate() - 1);
+      return x;
+    }
     function inSession() {
       const d = vnNow();
       const day = d.getDay();
       if (day === 0 || day === 6) return false;
       const m = d.getHours() * 60 + d.getMinutes();
       return (m >= 9 * 60 && m <= 11 * 60 + 30) || (m >= 13 * 60 && m <= 14 * 60 + 45);
+    }
+    // Phiên đóng cửa gần nhất: nghỉ trưa / đang chiều = đóng cửa sáng; sau 14:45, ngoài giờ, cuối tuần = đóng cửa chiều.
+    function closedSession() {
+      const d = vnNow();
+      const day = d.getDay();
+      const m = d.getHours() * 60 + d.getMinutes();
+      if (day === 0 || day === 6) {
+        const fri = prevTradingDay(d);
+        return { kind: "pm", when: fri, label: `Đóng cửa chiều ${dateLabel(fri)}` };
+      }
+      if (m > 11 * 60 + 30 && m < 14 * 60 + 45) {
+        return { kind: "am", when: d, label: `Đóng cửa sáng ${dateLabel(d)}` };
+      }
+      if (m >= 14 * 60 + 45) return { kind: "pm", when: d, label: `Đóng cửa chiều ${dateLabel(d)}` };
+      const prev = prevTradingDay(d);
+      return { kind: "pm", when: prev, label: `Đóng cửa chiều ${dateLabel(prev)}` };
     }
     async function fetchQuotes(list) {
       const now = Date.now();
@@ -210,7 +235,7 @@
         .map(x => ({ symbol: x.stock_code, floor: x.post_to === "HOSE" ? "HSX" : "HNX" }));
     }
     function setStatus() {
-      const phase = inSession() ? "phiên" : "đóng cửa";
+      const phase = closedSession().label;
       const scanAt = scanUpdated ? scanUpdated.slice(11, 16) : "--:--";
       document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • scan ${scanAt} • nóng ${hot.length}`;
     }
@@ -242,8 +267,22 @@
       if (percent > 4) return "hot-green";
       return "hot-yellow";
     }
+    function snapKey(session) { return `hot-close:${session.kind}:${dateKey(session.when)}`; }
+    function readSnap(session) {
+      try {
+        const raw = localStorage.getItem(snapKey(session));
+        if (!raw) return null;
+        const saved = JSON.parse(raw);
+        return Array.isArray(saved.rows) && saved.rows.length ? saved : null;
+      } catch { return null; }
+    }
+    function writeSnap(session, rows) {
+      try {
+        localStorage.setItem(snapKey(session), JSON.stringify({ date: dateLabel(session.when), kind: session.kind, rows }));
+      } catch {}
+    }
     async function fetchPrevHot() {
-      if (prevLoaded && hot.length) { renderHot(); return; }
+      if (prevLoaded && hot.length && hotMode === "prev") { renderHot(); return; }
       const res = await fetch("prev.json");
       if (!res.ok) throw new Error("prev");
       const saved = await res.json();
@@ -254,24 +293,62 @@
       renderHot();
       setStatus();
     }
-    async function fetchHot() {
-      if (!inSession()) {
-        if (hot.length) { setStatus(); return; }
-        await fetchPrevHot();
-        return;
-      }
+    async function fetchClosedHot() {
       if (hotInflight) return hotInflight;
       hotInflight = (async () => {
+        const session = closedSession();
+        const cached = readSnap(session);
+        const clock = vnNow();
+        const mins = clock.getHours() * 60 + clock.getMinutes();
+        const day = clock.getDay();
+        const weekend = day === 0 || day === 6;
+        const lunch = !weekend && mins > 11 * 60 + 30 && mins < 13 * 60;
+        const afterClose = !weekend && mins >= 14 * 60 + 45;
+        const beforeOpen = !weekend && mins < 9 * 60;
+        const feedIsThisClose = (session.kind === "am" && lunch) || (session.kind === "pm" && (afterClose || beforeOpen || weekend));
+        if (cached && !feedIsThisClose) {
+          hot = rankHot(cached.rows);
+          hotMode = "close";
+          hotDate = session.label;
+          renderHot();
+          setStatus();
+          return;
+        }
+        if (!feedIsThisClose) {
+          if (cached) {
+            hot = rankHot(cached.rows);
+            hotMode = "close";
+            hotDate = session.label;
+            renderHot();
+            setStatus();
+            return;
+          }
+          await fetchPrevHot();
+          return;
+        }
         if (!universe.length) await loadUniverse();
         const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
         const rows = await fetchQuotes(universe.map(x => x.symbol));
-        const live = rankHot(rows.map(r => mapVps(r, floorOf.get(r.sym))));
-        if (!live.length) { await fetchPrevHot(); return; }
-        hot = live;
-        hotMode = "live";
-        hotDate = "";
-        renderHot();
-        setStatus();
+        const mapped = rows.map(r => mapVps(r, floorOf.get(r.sym))).filter(s => s.price > 0);
+        const ranked = rankHot(mapped);
+        if (ranked.length) {
+          writeSnap(session, mapped);
+          hot = ranked;
+          hotMode = "close";
+          hotDate = session.label;
+          renderHot();
+          setStatus();
+          return;
+        }
+        if (cached) {
+          hot = rankHot(cached.rows);
+          hotMode = "close";
+          hotDate = session.label;
+          renderHot();
+          setStatus();
+          return;
+        }
+        await fetchPrevHot();
       })();
       try { await hotInflight; } finally { hotInflight = null; }
     }
@@ -317,9 +394,9 @@
       const tb = document.getElementById("hotTable");
       const scroller = tb.closest(".col-hot");
       const top = scroller ? scroller.scrollTop : 0;
-      document.getElementById("hotTitle").textContent = hotMode === "live" ? "Realtime · 35 HSX + 15 HNX · từ 2%" : `Phiên trước${hotDate ? " " + hotDate : ""} · 35 HSX + 15 HNX · từ 2%`;
+      document.getElementById("hotTitle").textContent = `${hotDate || "Phiên đóng cửa gần nhất"} · 35 HSX + 15 HNX · từ 2%`;
       if (!hot.length) {
-        tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">${hotMode === "live" ? "Chưa có mã tăng" : "Đang tải phiên trước..."}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">Đang tải giá đóng cửa phiên gần nhất...</td></tr>`;
         return;
       }
       const existing = new Map([...tb.querySelectorAll("tr[data-sym]")].map(tr => [tr.dataset.sym, tr]));
@@ -456,16 +533,20 @@
       await fetchBoard(true);
       lastBoardAt = Date.now();
     }
+    let hotSessionKey = "";
     async function tick() {
       try {
+        const session = closedSession();
+        const key = snapKey(session);
+        const due = key !== hotSessionKey || !hot.length;
+        hotSessionKey = key;
+        if (due) await fetchClosedHot();
         if (inSession()) {
           closedReady = false;
-          await fetchHot();
           await refreshBoard(false);
-          setTimeout(tick, 10000);
+          setTimeout(tick, 60000);
           return;
         }
-        if (!hot.length) await fetchPrevHot();
         await refreshBoard(!closedReady);
         closedReady = true;
         setStatus();
