@@ -178,9 +178,10 @@
       }
       return fresh;
     }
-    async function loadList() {
-      if (symbols.length && !inSession()) return;
-      if (symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
+    let lastBoardAt = 0;
+    async function loadList(force) {
+      if (!force && symbols.length && !inSession()) return;
+      if (!force && symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
       const res = await fetch("scan.json");
       const data = await res.json();
       const next = (data.symbols || []).map(s => String(s).toUpperCase());
@@ -198,8 +199,8 @@
       const phase = inSession() ? "phiên" : "đóng cửa";
       document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • nóng ${hot.length}`;
     }
-    async function fetchBoard() {
-      if (!inSession() && stocks.length) { setStatus(); return; }
+    async function fetchBoard(force) {
+      if (!force && !inSession() && stocks.length) { setStatus(); return; }
       if (boardInflight) return boardInflight;
       boardInflight = (async () => {
         if (!symbols.length) { stocks = []; applyFilter(); }
@@ -428,25 +429,28 @@
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
     if (window.matchMedia("(max-width:767px)").matches) showTab("hot");
+    async function refreshBoard(force) {
+      const due = inSession() ? 60 * 1000 : 60 * 60 * 1000;
+      if (!force && stocks.length && Date.now() - lastBoardAt < due) return;
+      await loadList(true);
+      await fetchBoard(true);
+      lastBoardAt = Date.now();
+    }
     async function tick() {
       try {
         if (inSession()) {
           closedReady = false;
-          await loadList();
           await fetchHot();
-          await fetchBoard();
+          await refreshBoard(false);
           setTimeout(tick, 10000);
           return;
         }
-        if (!closedReady) {
-          await loadList();
-          if (!hot.length) await fetchPrevHot();
-          if (!stocks.length) await fetchBoard();
-          closedReady = true;
-        }
+        if (!hot.length) await fetchPrevHot();
+        await refreshBoard(!closedReady);
+        closedReady = true;
         setStatus();
       } catch { document.getElementById("status").textContent = "Lỗi tải dữ liệu"; }
-      setTimeout(tick, 30000);
+      setTimeout(tick, 60000);
     }
     function boot() { tick(); }
     if (document.readyState === "complete") boot();
