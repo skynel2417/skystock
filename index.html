@@ -120,7 +120,8 @@
     const API = "https://skystock-api-1.onrender.com";
     const PROFILE = "https://api.simplize.vn/api/company/summary";
     const QUOTE_TTL = 8000;
-    const LIST_TTL = 5 * 60 * 1000;
+    const LIST_TTL = 60 * 1000;
+    let closedReady = false;
     let hotMode = "prev";
     let symbols = [], stocks = [], filtered = [], selected = null, profiles = {};
     let universe = [], hot = [], hotDate = "", chart = null, candleSeries = null, volumeSeries = null;
@@ -177,8 +178,9 @@
       }
       return fresh;
     }
-    async function loadList(force) {
-      if (!force && symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
+    async function loadList() {
+      if (symbols.length && !inSession()) return;
+      if (symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
       const res = await fetch("scan.json");
       const data = await res.json();
       const next = (data.symbols || []).map(s => String(s).toUpperCase());
@@ -197,6 +199,7 @@
       document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • nóng ${hot.length}`;
     }
     async function fetchBoard() {
+      if (!inSession() && stocks.length) { setStatus(); return; }
       if (boardInflight) return boardInflight;
       boardInflight = (async () => {
         if (!symbols.length) { stocks = []; applyFilter(); }
@@ -231,9 +234,13 @@
       setStatus();
     }
     async function fetchHot() {
+      if (!inSession()) {
+        if (hot.length) { setStatus(); return; }
+        await fetchPrevHot();
+        return;
+      }
       if (hotInflight) return hotInflight;
       hotInflight = (async () => {
-        if (!inSession()) { await fetchPrevHot(); return; }
         if (!universe.length) await loadUniverse();
         const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
         const rows = await fetchQuotes(universe.map(x => x.symbol));
@@ -423,12 +430,23 @@
     if (window.matchMedia("(max-width:767px)").matches) showTab("hot");
     async function tick() {
       try {
-        await loadList(false);
-        if (inSession()) await fetchHot();
-        else await fetchPrevHot();
-        await fetchBoard();
+        if (inSession()) {
+          closedReady = false;
+          await loadList();
+          await fetchHot();
+          await fetchBoard();
+          setTimeout(tick, 10000);
+          return;
+        }
+        if (!closedReady) {
+          await loadList();
+          if (!hot.length) await fetchPrevHot();
+          if (!stocks.length) await fetchBoard();
+          closedReady = true;
+        }
+        setStatus();
       } catch { document.getElementById("status").textContent = "Lỗi tải dữ liệu"; }
-      setTimeout(tick, inSession() ? 12000 : 60000);
+      setTimeout(tick, 30000);
     }
     function boot() { tick(); }
     if (document.readyState === "complete") boot();
