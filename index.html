@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Bảng giá Chứng khoán Việt Nam</title>
   <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://skystock-api-1.onrender.com" />
+  <link rel="dns-prefetch" href="https://skystock-api-1.onrender.com" />
   <style>
     body { background:#0f172a; color:#e2e8f0; margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
     .up { color:#22c55e; } .down { color:#ef4444; } .ref { color:#facc15; }
@@ -34,6 +36,8 @@
     .py-4 { padding-top:16px; padding-bottom:16px; } .mt-1 { margin-top:4px; }
     #searchInput { background:#1e293b; border:1px solid #475569; border-radius:4px; color:#e2e8f0; }
     #searchInput:focus { outline:none; border-color:#3b82f6; }
+    #chartSymbol { width:76px; background:#1e293b; border:1px solid #475569; border-radius:4px; color:#e2e8f0; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 8px; font-size:13px; }
+    #chartSymbol:focus { outline:none; border-color:#3b82f6; }
     .profile-grid { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
     .metric { display:inline-flex; align-items:baseline; gap:4px; background:#111827; border:1px solid #243044; border-radius:4px; padding:2px 7px; max-width:100%; }
     .metric .val { color:#e2e8f0; }
@@ -64,6 +68,7 @@
       .topbar { padding-top:max(8px, env(safe-area-inset-top)); }
       .topbar h1 { font-size:15px; }
       #searchInput { width:92px; min-height:36px; font-size:16px; }
+      #chartSymbol { width:88px; min-height:36px; font-size:16px; }
       #status { display:none; }
       .main-layout { display:block; height:calc(100dvh - 52px - 58px - env(safe-area-inset-bottom)); }
       .col-board, .col-hot, .col-chart { display:none; height:100%; overflow:auto; }
@@ -111,7 +116,7 @@
     </div>
     <div class="col-chart">
       <div class="px-3 py-1 border-b flex gap-2 items-center">
-        <span id="chartTitle" class="text-xs text-slate-400">Chart</span>
+        <input id="chartSymbol" placeholder="Nhập mã" maxlength="10" autocomplete="off" spellcheck="false" aria-label="Mã trên chart" />
         <button class="tf-btn active" data-tf="D" onclick="changeTimeframe('D')">Ngày</button>
         <button class="tf-btn" data-tf="W" onclick="changeTimeframe('W')">Tuần</button>
         <button class="tf-btn" data-tf="M" onclick="changeTimeframe('M')">Tháng</button>
@@ -482,12 +487,24 @@
       aggCache.set(key, out);
       return out;
     }
+    const seriesCache = new Map();
+    function seriesFor(symbol, tf, bars) {
+      const key = symbol + ":" + tf + ":" + bars.length + ":" + (bars.length ? bars[bars.length - 1].time : 0);
+      const hit = seriesCache.get(key);
+      if (hit) return hit;
+      const candleData = bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+      const volumeData = bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)" }));
+      const packed = { candleData, volumeData };
+      seriesCache.set(key, packed);
+      return packed;
+    }
     function drawChart(fit) {
       ensureChart();
       if (!chart) return;
       const bars = aggregate(selected || "", rawHistory, currentTF).filter(b => b.time && b.open);
-      candleSeries.setData(bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
-      volumeSeries.setData(bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)" })));
+      const packed = seriesFor(selected || "", currentTF, bars);
+      candleSeries.setData(packed.candleData);
+      volumeSeries.setData(packed.volumeData);
       if (fit) { chart.timeScale().fitContent(); fittedSymbol = selected; }
     }
     function changeTimeframe(tf) {
@@ -556,34 +573,71 @@
       profiles[symbol] = { name: data.nameVi || data.name || symbol, sector: data.bcEconomicSectorName || "", industry: data.industryActivity || "", eps: data.epsRatio, pe: data.peRatio, mcap: data.marketCap, shares: data.outstandingSharesValue };
       return profiles[symbol];
     }
+    function setChartSymbol(symbol) {
+      const input = document.getElementById("chartSymbol");
+      if (input && input.value !== symbol) input.value = symbol;
+    }
+    function stockBySymbol(symbol) {
+      return stocks.find(s => s.symbol === symbol) || hot.find(s => s.symbol === symbol) || null;
+    }
+    async function applyChartSymbol() {
+      const input = document.getElementById("chartSymbol");
+      const symbol = input.value.trim().toUpperCase();
+      input.value = symbol;
+      if (!/^[A-Z0-9]{2,10}$/.test(symbol)) return;
+      if (symbol === selected && rawHistory.length) return;
+      let stock = stockBySymbol(symbol);
+      if (!stock) {
+        stock = { symbol, price: 0, change: 0, percent: 0, volume: 0, floor: "" };
+        try {
+          const rows = await fetchQuotes([symbol]);
+          const row = rows.find(r => r.sym === symbol);
+          if (row) stock = mapVps(row);
+        } catch {}
+      }
+      selectStock(stock);
+    }
     async function selectStock(stock) {
-      selected = stock.symbol;
+      const symbol = stock.symbol;
+      selected = symbol;
       if (window.matchMedia("(max-width:767px)").matches) showTab("chart");
       markSelected();
-      document.getElementById("chartTitle").textContent = stock.symbol;
-      renderProfile(stock, profiles[stock.symbol]);
+      setChartSymbol(symbol);
+      renderProfile(stock, profiles[symbol]);
+      if (historyAbort) historyAbort.abort();
+      historyAbort = new AbortController();
+      const signal = historyAbort.signal;
       if (profileAbort) profileAbort.abort();
       profileAbort = new AbortController();
-      const profileTask = loadProfile(stock.symbol, profileAbort.signal).then(p => { if (selected === stock.symbol) renderProfile(stock, p); }).catch(() => {});
-      if (historyCache.has(stock.symbol)) rawHistory = historyCache.get(stock.symbol);
-      else {
-        if (historyAbort) historyAbort.abort();
-        historyAbort = new AbortController();
-        try {
-          const res = await fetch(`${API}/api/history/${stock.symbol}?days=160`, { signal: historyAbort.signal });
-          const data = await res.json();
-          rawHistory = Array.isArray(data) ? data.map(normalizeBar) : [];
-          if (selected === stock.symbol) historyCache.set(stock.symbol, rawHistory);
-        } catch (err) {
-          if (err.name === "AbortError") return;
-          rawHistory = [];
-        }
+      loadProfile(symbol, profileAbort.signal)
+        .then(p => { if (selected === symbol && p) renderProfile(stock, p); })
+        .catch(() => {});
+      const cached = historyCache.get(symbol);
+      if (cached) {
+        rawHistory = cached;
+        currentTF = "D";
+        document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === "D"));
+        drawChart(fittedSymbol !== symbol);
+        return;
       }
-      if (selected !== stock.symbol) return;
-      currentTF = "D";
-      document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === "D"));
-      if (rawHistory.length) drawChart(fittedSymbol !== stock.symbol);
-      await profileTask;
+      rawHistory = [];
+      ensureChart();
+      if (candleSeries) candleSeries.setData([]);
+      if (volumeSeries) volumeSeries.setData([]);
+      try {
+        const res = await fetch(`${API}/api/history/${symbol}?days=160`, { signal });
+        if (!res.ok) throw new Error("History API error");
+        const data = await res.json();
+        if (selected !== symbol) return;
+        const bars = Array.isArray(data) ? data.map(normalizeBar) : [];
+        rawHistory = bars;
+        historyCache.set(symbol, bars);
+        currentTF = "D";
+        document.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.tf === "D"));
+        drawChart(fittedSymbol !== symbol);
+      } catch (err) {
+        if (err.name !== "AbortError") console.error("Không tải được lịch sử:", symbol, err);
+      }
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
     if (window.matchMedia("(max-width:767px)").matches) showTab("hot");
@@ -614,7 +668,17 @@
       } catch { document.getElementById("status").textContent = "Lỗi tải dữ liệu"; }
       setTimeout(tick, 60000);
     }
-    function boot() { tick(); }
+    function boot() {
+      ensureChart();
+      tick();
+    }
+    document.getElementById("chartSymbol").addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); applyChartSymbol(); }
+    });
+    document.getElementById("chartSymbol").addEventListener("blur", () => {
+      const symbol = document.getElementById("chartSymbol").value.trim().toUpperCase();
+      if (symbol && symbol !== selected) applyChartSymbol();
+    });
     if (document.readyState === "complete") boot();
     else window.addEventListener("load", boot);
   </script>
