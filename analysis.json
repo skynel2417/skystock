@@ -1,0 +1,69 @@
+{
+  "updated": "2026-10-09",
+  "disclaimer": "Tóm tắt tham khảo theo prompt phân tích, không phải khuyến nghị mua bán.",
+  "notes": {
+    "VPB": {
+      "core": "Ngân hàng bán lẻ và tín dụng tiêu dùng (FE Credit) là mảng chủ đạo; thu nhập lãi cho vay chiếm phần lớn, ngoài lãi từ dịch vụ và bảo hiểm.",
+      "value": "P/E khoảng 8, P/B khoảng 1,2–1,3 lần. Thận trọng chỉ trả quanh giá trị sổ sách điều chỉnh nếu nợ tiêu dùng tăng trở lại, không nội suy mục tiêu 12 tháng của CTCK.",
+      "plus": "Tự doanh CTCK gom mạnh gần đây; lợi nhuận quý 3 được một số bên dự báo dẫn nhóm ngân hàng tư nhân; tin SMBC đàm phán nâng sở hữu từ 15% lên khoảng 20%.",
+      "minus": "Khối ngoại bán ròng; lợi nhuận phụ thuộc nợ và trích lập FE Credit; pha loãng nếu tăng vốn.",
+      "target": "Ngắn hạn thận trọng 24.000–25.500, chỉ khi kết quả quý 3 không dưới kỳ vọng. Vùng rủi ro nếu mất 22.500."
+    },
+    "HDB": {
+      "core": "Ngân hàng bán lẻ, cộng hưởng tài chính tiêu dùng HD Saison và chứng khoán trong hệ sinh thái. Lãi vay và thu hồi nợ, phí dịch vụ là trụ lợi nhuận.",
+      "value": "P/E khoảng 5,9 lần, rẻ hơn mặt bằng nếu lợi nhuận quý 3 đúng hướng VCBS (LNTT khoảng 7.225 tỷ, +53% cùng kỳ). Thận trọng trừ pha loãng cổ phiếu thưởng và cổ tức cổ phiếu.",
+      "plus": "Dự báo quý 3 tăng trưởng cao nhờ ngoài lãi và thu hồi nợ.",
+      "minus": "Ngày 09/10/2026 giao dịch không hưởng quyền: thưởng 100:5 và cổ tức cổ phiếu 100:25. Giá điều chỉnh ngay, EPS bị pha loãng.",
+      "target": "Sau điều chỉnh quyền, kịch bản thận trọng là đi ngang quanh vùng giá mới. Chưa cộng lại mức giá trước quyền."
+    },
+    "SIP": {
+      "core": "Khu công nghiệp và quỹ đất cao su chuyển đổi của Sài Gòn VRG. Doanh thu chủ đạo từ cho thuê đất KCN, hạ tầng và một phần cao su.",
+      "value": "P/E khoảng 8,4 lần. Thận trọng định giá theo dòng tiền cho thuê đã ký, không vốn hóa hết quỹ đất chưa chuyển đổi.",
+      "plus": "VCBS từng kỳ vọng quý 3 doanh thu khoảng 2.575 tỷ (+15%) và LNST khoảng 448 tỷ (+17%).",
+      "minus": "Tiến độ pháp lý đất và giải phóng mặt bằng làm chậm ghi nhận; kết quả từng quý lệch mạnh.",
+      "target": "Ngắn hạn thận trọng +5–8% so với giá hiện tại nếu dòng tiền cho thuê giữ nhịp, không đuổi khi đã tăng trần."
+    },
+    "OIL": {
+      "core": "PV Oil phân phối xăng dầu bán buôn và bán lẻ. Lợi nhuận đến từ sản lượng và biên bán sản phẩm, không phải thăm dò khai thác.",
+      "value": "P/E khoảng 23 lần, không rẻ cho doanh nghiệp phân phối. Thận trọng khi biên bị điều tiết giá bán lẻ và hàng tồn kho biến động theo giá dầu.",
+      "plus": "Nhóm dầu khí được dự báo lợi nhuận quý 3 tăng mạnh khi giá sản phẩm lọc dầu cao.",
+      "minus": "Biên xăng dầu trong nước bị quản lý; hàng tồn kho lỗ nếu giá quay đầu.",
+      "target": "Ngắn hạn chỉ nhìn vùng giá hiện tại đến +5%. Không nâng mục tiêu theo nhịp hàng hóa."
+    },
+    "SAS": {
+      "core": "Dịch vụ hàng không tại Tân Sơn Nhất: phục vụ mặt đất, hành khách và dịch vụ sân bay. Doanh thu bám sản lượng chuyến bay và khách.",
+      "value": "P/E khoảng 5,8 lần nhìn rẻ, nhưng cần loại thu nhập một lần. Thận trọng định theo lợi nhuận dịch vụ lặp lại, không theo EPS đột biến.",
+      "plus": "Cao điểm du lịch và lượng khách quốc tế hỗ trợ sản lượng.",
+      "minus": "Công suất sân bay và cạnh tranh dịch vụ mặt đất; lợi nhuận dịch vụ biến động theo mùa.",
+      "target": "Ngắn hạn thận trọng giữ vùng giá hiện tại. Chỉ nâng nếu quý tới xác nhận EPS dịch vụ, không phải khoản bất thường."
+    },
+    "CQN": {
+      "core": "Cảng Quảng Ninh: xếp dở, cầu bến và logistics cảng. Doanh thu chủ đạo từ sản lượng hàng qua cảng, nhất là hàng rời và hàng xuất nhập khẩu.",
+      "value": "P/E khoảng 15 lần. Thận trọng không trả thêm nếu sản lượng than và hàng hóa vùng không tăng.",
+      "plus": "Sản lượng cảng phía Bắc và nhu cầu hàng rời.",
+      "minus": "Thời tiết, chu kỳ hàng hóa và cạnh tranh cảng lân cận làm sản lượng lệch.",
+      "target": "Ngắn hạn thận trọng đi ngang quanh giá hiện tại, biên khoảng ±5%."
+    },
+    "TRC": {
+      "core": "Cao su Tây Ninh: khai thác mủ và kinh doanh cao su. Lợi nhuận chủ đạo từ sản lượng vườn cây và giá cao su xuất khẩu, không phải phụ tùng ô tô.",
+      "value": "P/E khoảng 10,5 lần. Thận trọng vì lợi nhuận gần như đi theo giá hàng hóa, không có biên ổn định.",
+      "plus": "Giá cao su và xuất khẩu giữ được thì lợi nhuận vườn cây tốt.",
+      "minus": "Giá mủ giảm, mưa bão giảm sản lượng, chi phí nhân công.",
+      "target": "Ngắn hạn thận trọng không đặt mục tiêu cao hơn giá hiện tại quá 5%."
+    },
+    "VC3": {
+      "core": "Nam Mê Kông (Vinaconex 3 cũ): phát triển bất động sản, khu đô thị và thi công xây dựng. Lợi nhuận chủ đạo phụ thuộc bàn giao dự án, không đều theo quý.",
+      "value": "P/E khoảng 49 lần là đắt so với lợi nhuận đã ghi nhận. Thận trọng chỉ nhìn giá trị dự án đã có pháp lý và tiến độ, không vốn hóa kế hoạch.",
+      "plus": "Bàn giao hoặc mở bán dự án đúng hạn thì lợi nhuận có thể nhảy một quý.",
+      "minus": "Xây dựng được dự báo lợi nhuận quý 3 giảm rất mạnh; chậm pháp lý dự án làm trượt doanh thu.",
+      "target": "Ngắn hạn thận trọng không có upside. Ưu tiên quan sát vùng giá hiện tại, rủi ro nếu mất nền sau nhịp tăng."
+    },
+    "MST": {
+      "core": "Đầu tư MST: xây dựng và đầu tư công trình. Doanh thu chủ đạo từ thi công, lợi nhuận mỏng và phụ thuộc nghiệm thu.",
+      "value": "P/E khoảng 37 lần là cao với doanh nghiệp xây lắp. Thận trọng không trả theo backlog chưa ghi nhận.",
+      "plus": "Giải ngân đầu tư công nếu chuyển thành nghiệm thu.",
+      "minus": "Nhóm xây dựng được dự báo lợi nhuận quý 3 giảm rất sâu; biên thấp, nợ và tồn đọng nghiệm thu.",
+      "target": "Ngắn hạn thận trọng không đặt mục tiêu tăng. Chờ báo cáo quý xác nhận lợi nhuận."
+    }
+  }
+}
