@@ -8,6 +8,7 @@
   <style>
     body { background:#0f172a; color:#e2e8f0; margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
     .up { color:#22c55e; } .down { color:#ef4444; } .ref { color:#facc15; }
+    .hot-purple { color:#c084fc; } .hot-green { color:#22c55e; } .hot-yellow { color:#facc15; }
     tr:hover { background:#1e293b; cursor:pointer; } .selected { background:#1e3a5f !important; }
     #priceTable td, #priceTable th { padding:4px 6px; font-size:12px; white-space:nowrap; }
     #hotTable td, #hotTable th { padding:0 4px; white-space:nowrap; font-size:11px; line-height:1.05; }
@@ -233,8 +234,13 @@
       return next.some((s, i) => s.symbol !== stocks[i].symbol || s.price !== stocks[i].price || s.change !== stocks[i].change || s.volume !== stocks[i].volume);
     }
     function rankHot(list) {
-      const top = (floor, n) => list.filter(s => s.floor === floor && s.percent > 0 && Number(s.volume) > 10000).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
+      const top = (floor, n) => list.filter(s => s.floor === floor && s.percent >= 2 && Number(s.volume) > 10000).sort((a, b) => b.percent - a.percent || b.change - a.change).slice(0, n);
       return [...top("HSX", 35), ...top("HNX", 15)];
+    }
+    function hotCls(percent) {
+      if (percent >= 6.5) return "hot-purple";
+      if (percent > 4) return "hot-green";
+      return "hot-yellow";
     }
     async function fetchPrevHot() {
       if (prevLoaded && hot.length) { renderHot(); return; }
@@ -276,8 +282,8 @@
     }
     function sig(s) { return [s.price, s.change, s.percent, s.volume, s.floor || ""].join("|"); }
     function cells(s, withFloor) {
-      const cls = s.change > 0 ? "up" : s.change < 0 ? "down" : "ref";
-      return `<td class="font-bold">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
+      const cls = withFloor ? hotCls(Number(s.percent || 0)) : (s.change > 0 ? "up" : s.change < 0 ? "down" : "ref");
+      return `<td class="font-bold ${withFloor ? cls : ""}">${s.symbol}</td>${withFloor ? `<td class="text-slate-400">${s.floor || ""}</td>` : ""}<td class="text-right ${cls}">${Number(s.price || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.change > 0 ? "+" : ""}${Number(s.change || 0).toLocaleString("vi-VN")}</td><td class="text-right ${cls}">${s.percent > 0 ? "+" : ""}${Number(s.percent || 0).toFixed(2)}</td><td class="text-right text-slate-500">${(Number(s.volume || 0) / 1000).toFixed(0)}K</td>`;
     }
     function paint(tr, s, withFloor) {
       const next = sig(s);
@@ -311,7 +317,7 @@
       const tb = document.getElementById("hotTable");
       const scroller = tb.closest(".col-hot");
       const top = scroller ? scroller.scrollTop : 0;
-      document.getElementById("hotTitle").textContent = hotMode === "live" ? "Realtime · 35 HSX + 15 HNX tăng mạnh" : `Phiên trước${hotDate ? " " + hotDate : ""} · 35 HSX + 15 HNX tăng mạnh`;
+      document.getElementById("hotTitle").textContent = hotMode === "live" ? "Realtime · 35 HSX + 15 HNX · từ 2%" : `Phiên trước${hotDate ? " " + hotDate : ""} · 35 HSX + 15 HNX · từ 2%`;
       if (!hot.length) {
         tb.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-center py-4">${hotMode === "live" ? "Chưa có mã tăng" : "Đang tải phiên trước..."}</td></tr>`;
         return;
