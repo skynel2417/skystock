@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Bảng giá Chứng khoán Việt Nam</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -29,16 +29,34 @@
       #hotTable .grp td { height:calc((100vh - 78px) / 70); font-size:9px; }
       .col-chart { flex:1; min-width:360px; display:flex; flex-direction:column; }
     }
+    .tabbar { display:none; }
     @media (max-width:767px) {
-      .main-layout { display:block; }
-      .col-board { max-height:36vh; overflow:auto; }
-      .col-hot { max-height:42vh; overflow:auto; border-top:1px solid #334155; }
-      .col-chart { height:56vh; display:flex; flex-direction:column; }
+      body { height:100dvh; overflow:hidden; }
+      .topbar { padding-top:max(8px, env(safe-area-inset-top)); }
+      .topbar h1 { font-size:15px; }
+      #searchInput { width:92px; min-height:36px; font-size:16px; }
+      #status { display:none; }
+      .main-layout { display:block; height:calc(100dvh - 52px - 58px - env(safe-area-inset-bottom)); }
+      .col-board, .col-hot, .col-chart { display:none; height:100%; overflow:auto; }
+      .col-board.show, .col-hot.show, .col-chart.show { display:flex; flex-direction:column; }
+      .col-board.show { display:block; }
+      .sec-h { position:sticky; top:0; z-index:2; font-size:12px; padding:8px 10px; }
+      #priceTable td, #priceTable th, #hotTable td, #hotTable th { font-size:14px; padding:10px 8px; line-height:1.25; height:auto; }
+      #hotTable .grp td { font-size:12px; padding:6px 8px; height:auto; }
+      .col-hot table, .col-hot thead { height:auto; position:static; }
+      .col-chart { min-width:0; }
+      #companyPanel { font-size:13px; }
+      #companyPanel .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
+      #chart { min-height:0; flex:1; }
+      .tf-btn { min-height:36px; padding:6px 12px; font-size:14px; }
+      .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:20; background:#0b1220; border-top:1px solid #334155; padding-bottom:env(safe-area-inset-bottom); }
+      .tabbar button { flex:1; min-height:52px; background:transparent; color:#94a3b8; border:0; font-size:13px; font-weight:600; }
+      .tabbar button.active { color:#93c5fd; }
     }
   </style>
 </head>
 <body class="flex flex-col">
-  <div class="px-3 py-2 border-b border-slate-700 flex items-center gap-2">
+  <div class="topbar px-3 py-2 border-b border-slate-700 flex items-center gap-2">
     <h1 class="text-base font-bold">Bảng giá CK</h1>
     <input id="searchInput" placeholder="Tìm mã..." class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm w-24 focus:outline-none" />
     <p id="status" class="text-xs text-slate-400 ml-auto">Đang tải...</p>
@@ -73,6 +91,11 @@
       <div id="chart" class="flex-1" style="min-height:240px"></div>
     </div>
   </div>
+  <nav class="tabbar" aria-label="Chuyển khung">
+    <button type="button" class="active" data-tab="board" onclick="showTab('board')">Lọc</button>
+    <button type="button" data-tab="hot" onclick="showTab('hot')">Nóng</button>
+    <button type="button" data-tab="chart" onclick="showTab('chart')">Chart</button>
+  </nav>
   <script>
     const VPS = "https://bgapidatafeed.vps.com.vn/getliststockdata";
     const VPS_LIST = "https://bgapidatafeed.vps.com.vn/getlistallstock";
@@ -212,6 +235,13 @@
         tb.appendChild(tr);
       });
     }
+    function showTab(name) {
+      document.querySelector(".col-board").classList.toggle("show", name === "board");
+      document.querySelector(".col-hot").classList.toggle("show", name === "hot");
+      document.querySelector(".col-chart").classList.toggle("show", name === "chart");
+      document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+      if (name === "chart" && chart) requestAnimationFrame(() => chart.timeScale().fitContent());
+    }
     function ensureChart() {
       if (chart) return;
       const el = document.getElementById("chart");
@@ -269,6 +299,7 @@
     }
     async function selectStock(stock) {
       selected = stock.symbol;
+      if (window.matchMedia("(max-width:767px)").matches) showTab("chart");
       renderTable();
       renderHot();
       document.getElementById("chartTitle").textContent = stock.symbol;
@@ -285,6 +316,8 @@
       await profileTask;
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
+    if (window.matchMedia("(max-width:767px)").matches) showTab("hot");
+    window.addEventListener("resize", () => { if (chart) chart.timeScale().fitContent(); });
     (async () => {
       try {
         await loadList();
