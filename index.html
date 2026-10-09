@@ -148,41 +148,14 @@
       return [...top("HSX", 35), ...top("HNX", 15)];
     }
     async function fetchPrevHot() {
-      if (!universe.length) await loadUniverse();
-      const key = "hot-prev-" + vnNow().toISOString().slice(0, 10);
-      const cached = localStorage.getItem(key);
-      if (cached) {
-        const saved = JSON.parse(cached);
-        hot = rankHot(saved.rows || []);
-        hotMode = "prev";
-        hotDate = saved.date || "";
-        renderHot();
-        return;
-      }
-      const floorOf = new Map(universe.map(x => [x.symbol, x.floor]));
-      const rows = [];
-      const symbols = [...floorOf.keys()];
-      for (let i = 0; i < symbols.length; i += 12) {
-        const part = await Promise.all(symbols.slice(i, i + 12).map(async sym => {
-          try {
-            const res = await fetch(`${CAFEF}?Symbol=${sym}&PageIndex=1&PageSize=1`);
-            if (!res.ok) return null;
-            const data = await res.json();
-            const row = data?.Data?.Data?.[0];
-            if (!row) return null;
-            const ch = parsePrev(row.ThayDoi);
-            const px = Number(row.GiaDongCua || 0);
-            return { symbol: sym, floor: floorOf.get(sym), price: toVnd(px), change: ch.change, percent: ch.percent, volume: Number(row.KhoiLuongKhopLenh || 0), date: row.Ngay || "" };
-          } catch { return null; }
-        }));
-        rows.push(...part.filter(Boolean));
-      }
-      const date = rows.find(r => r.date)?.date || "";
-      localStorage.setItem(key, JSON.stringify({ date, rows }));
-      hot = rankHot(rows);
+      const res = await fetch("prev.json?ts=" + Date.now());
+      if (!res.ok) throw new Error("prev");
+      const saved = await res.json();
+      hot = rankHot(saved.rows || []);
       hotMode = "prev";
-      hotDate = date;
+      hotDate = saved.date || "";
       renderHot();
+      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • lọc ${filtered.length} • nóng ${hot.length}`;
     }
     async function fetchHot() {
       if (!universe.length) await loadUniverse();
