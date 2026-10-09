@@ -179,13 +179,26 @@
       return fresh;
     }
     let lastBoardAt = 0;
+    let scanUpdated = "";
     async function loadList(force) {
       if (!force && symbols.length && !inSession()) return;
       if (!force && symbols.length && Date.now() - listLoadedAt < LIST_TTL) return;
-      const res = await fetch("scan.json");
-      const data = await res.json();
-      const next = (data.symbols || []).map(s => String(s).toUpperCase());
-      if (next.join(",") !== symbols.join(",")) symbols = next;
+      const urls = [
+        `https://raw.githubusercontent.com/skynel2417/skystock/main/scan.json?t=${Date.now()}`,
+        `scan.json?t=${Date.now()}`
+      ];
+      let data = null;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) continue;
+          const body = await res.json();
+          if (body && Array.isArray(body.symbols)) { data = body; break; }
+        } catch {}
+      }
+      if (!data) return;
+      symbols = (data.symbols || []).map(s => String(s).toUpperCase());
+      scanUpdated = data.updated || "";
       listLoadedAt = Date.now();
     }
     async function loadUniverse() {
@@ -197,7 +210,8 @@
     }
     function setStatus() {
       const phase = inSession() ? "phiên" : "đóng cửa";
-      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • nóng ${hot.length}`;
+      const scanAt = scanUpdated ? scanUpdated.slice(11, 16) : "--:--";
+      document.getElementById("status").textContent = `${new Date().toLocaleTimeString("vi-VN")} • ${phase} • lọc ${filtered.length} • scan ${scanAt} • nóng ${hot.length}`;
     }
     async function fetchBoard(force) {
       if (!force && !inSession() && stocks.length) { setStatus(); return; }
