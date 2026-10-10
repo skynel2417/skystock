@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Bảng giá Chứng khoán Việt Nam</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <style>
@@ -114,6 +118,15 @@
       #hotTable th:nth-child(4), #hotTable td:nth-child(4) { display:none; } /* ẩn cột TB cho màn nhỏ */
       .topbar h1 { font-size:15px; }
     }
+  
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { touch-action: manipulation; }
+    @media (max-width:767px) {
+      #searchInput { width: 120px !important; }
+      .tabbar button { font-size: 15px; }
+      .col-hot, .col-board { -webkit-overflow-scrolling: touch; }
+    }
+
   </style>
 </head>
 <body class="flex flex-col">
@@ -730,3 +743,4 @@
   </script>
 </body>
 </html>
+
